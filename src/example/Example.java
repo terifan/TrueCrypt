@@ -34,17 +34,17 @@ public class Example
 
 	private static void iterate(FatFile aDirectory) throws IOException
 	{
-		for (FatFile file : aDirectory.listFiles())
+		for (FatFile item : aDirectory.listFiles())
 		{
-			System.out.println(file.getPath());
+			System.out.println(item.getPath());
 
-			if (file.isFile())
+			if (item.isFile())
 			{
-				byte[] data = file.readAll();
+				byte[] data = item.readAll();
 			}
 			else
 			{
-				iterate((FatFile)file);
+				iterate(item);
 			}
 		}
 	}
