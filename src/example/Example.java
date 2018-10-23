@@ -1,4 +1,4 @@
-package dev;
+package example;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -7,7 +7,7 @@ import org.terifan.fat32.FatFile;
 import org.terifan.truecrypt.TrueCryptFileSystem;
 
 
-public class Test
+public class Example
 {
 	public static void main(String... args)
 	{
