@@ -15,71 +15,103 @@ import java.util.zip.CRC32;
 
 public class TrueCryptPageStore implements PageStore, AutoCloseable
 {
-	private final static int VERSION_NUM                            = 0x063a;
+	private final static int VERSION_NUM = 0x063a;
 
-	private final static int ENCRYPTION_DATA_UNIT_SIZE              = 512;
-	private final static int PKCS5_SALT_SIZE                        = 64;
-	private final static int MASTER_KEYDATA_SIZE                    = 256;
-	private final static int VOLUME_HEADER_VERSION                  = 0x0004;
+	private final static int ENCRYPTION_DATA_UNIT_SIZE = 512;
+	private final static int PKCS5_SALT_SIZE = 64;
+	private final static int MASTER_KEYDATA_SIZE = 256;
+	private final static int VOLUME_HEADER_VERSION = 0x0004;
 
-	private final static int TC_VOLUME_MIN_REQUIRED_PROGRAM_VERSION	= 0x0600;
-	private final static int TC_VOLUME_HEADER_EFFECTIVE_SIZE        = 512;
+	private final static int TC_VOLUME_MIN_REQUIRED_PROGRAM_VERSION = 0x0600;
+	private final static int TC_VOLUME_HEADER_EFFECTIVE_SIZE = 512;
 
-	private final static int TC_HEADER_OFFSET_MAGIC                 = 64;
-	private final static int TC_HEADER_OFFSET_VERSION               = 68;
-	private final static int TC_HEADER_OFFSET_REQUIRED_VERSION      = 70;
-	private final static int TC_HEADER_OFFSET_KEY_AREA_CRC          = 72;
-	private final static int TC_HEADER_OFFSET_VOLUME_CREATION_TIME  = 76;
-	private final static int TC_HEADER_OFFSET_MODIFICATION_TIME     = 84;
-	private final static int TC_HEADER_OFFSET_HIDDEN_VOLUME_SIZE    = 92;
-	private final static int TC_HEADER_OFFSET_VOLUME_SIZE           = 100;
-	private final static int TC_HEADER_OFFSET_ENCRYPTED_AREA_START  = 108;
+	private final static int TC_HEADER_OFFSET_MAGIC = 64;
+	private final static int TC_HEADER_OFFSET_VERSION = 68;
+	private final static int TC_HEADER_OFFSET_REQUIRED_VERSION = 70;
+	private final static int TC_HEADER_OFFSET_KEY_AREA_CRC = 72;
+	private final static int TC_HEADER_OFFSET_VOLUME_CREATION_TIME = 76;
+	private final static int TC_HEADER_OFFSET_MODIFICATION_TIME = 84;
+	private final static int TC_HEADER_OFFSET_HIDDEN_VOLUME_SIZE = 92;
+	private final static int TC_HEADER_OFFSET_VOLUME_SIZE = 100;
+	private final static int TC_HEADER_OFFSET_ENCRYPTED_AREA_START = 108;
 	private final static int TC_HEADER_OFFSET_ENCRYPTED_AREA_LENGTH = 116;
-	private final static int TC_HEADER_OFFSET_FLAGS                 = 124;
-	private final static int TC_HEADER_OFFSET_HEADER_CRC            = 252;
+	private final static int TC_HEADER_OFFSET_FLAGS = 124;
+	private final static int TC_HEADER_OFFSET_HEADER_CRC = 252;
 
-	private final static int HEADER_SALT_OFFSET                     = 0;
-	private final static int HEADER_ENCRYPTED_DATA_OFFSET           = PKCS5_SALT_SIZE;
-	private final static int HEADER_MASTER_KEYDATA_OFFSET           = 256;
-	private final static int HEADER_ENCRYPTED_DATA_SIZE             = (TC_VOLUME_HEADER_EFFECTIVE_SIZE - HEADER_ENCRYPTED_DATA_OFFSET);
+	private final static int HEADER_SALT_OFFSET = 0;
+	private final static int HEADER_ENCRYPTED_DATA_OFFSET = PKCS5_SALT_SIZE;
+	private final static int HEADER_MASTER_KEYDATA_OFFSET = 256;
+	private final static int HEADER_ENCRYPTED_DATA_SIZE = (TC_VOLUME_HEADER_EFFECTIVE_SIZE - HEADER_ENCRYPTED_DATA_OFFSET);
 
 	private PageStore mPageStore;
 	private long mVolumeDataAreaOffset;
 	private long mVolumeDataAreaLength;
-	private Cipher [] mCiphers;
-	private Cipher [] mTweakCiphers;
+	private Cipher[] mCiphers;
+	private Cipher[] mTweakCiphers;
 
 
-	public TrueCryptPageStore(PageStore aPageStore, String aPassword) throws IOException
+	private TrueCryptPageStore(PageStore aPageStore) throws IOException
 	{
 		if (aPageStore.getPageSize() != ENCRYPTION_DATA_UNIT_SIZE)
 		{
-			throw new IllegalArgumentException("Provided page store must have a "+ENCRYPTION_DATA_UNIT_SIZE+"-byte page size.");
+			throw new IllegalArgumentException("Provided page store must have a " + ENCRYPTION_DATA_UNIT_SIZE + "-byte page size.");
 		}
 
 		mPageStore = aPageStore;
+	}
 
-		readVolumeHeader(aPassword);
+
+	public static TrueCryptPageStore open(PageStore aPageStore, String aPassword) throws IOException
+	{
+		TrueCryptPageStore tc = new TrueCryptPageStore(aPageStore);
+		tc.readVolumeHeader(aPassword);
+
+		return tc;
 	}
 
 
 	private void readVolumeHeader(String aPassword) throws IOException
 	{
-		byte [] headerBuffer = new byte[ENCRYPTION_DATA_UNIT_SIZE];
+		byte[] headerBuffer = new byte[ENCRYPTION_DATA_UNIT_SIZE];
 		mPageStore.read(0, headerBuffer);
 
-		String [][] ciphers = {{"aes"},
-							   {"serpent"},
-							   {"twofish"},
-							   {"twofish", "aes"},
-							   {"serpent", "twofish", "aes"},
-							   {"aes", "serpent"},
-							   {"aes", "twofish", "serpent"},
-							   {"serpent", "twofish"}};
+		String[][] ciphers =
+		{
+			{
+				"aes"
+			},
+			{
+				"serpent"
+			},
+			{
+				"twofish"
+			},
+			{
+				"twofish", "aes"
+			},
+			{
+				"serpent", "twofish", "aes"
+			},
+			{
+				"aes", "serpent"
+			},
+			{
+				"aes", "twofish", "serpent"
+			},
+			{
+				"serpent", "twofish"
+			}
+		};
 
-		int [] iterations = {1000, 2000, 1000};
+		int[] iterations =
+		{
+			1000, 2000, 1000
+		};
 
-		String [] digests = {"sha512", "ripemd160", "whirlpool"};
+		String[] digests =
+		{
+			"sha512", "ripemd160", "whirlpool"
+		};
 
 		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
 		for (String[] cipher : ciphers)
@@ -109,7 +141,7 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	}
 
 
-	private void setup(byte [] aHeader, String [] aCipherAlgorithms)
+	private void setup(byte[] aHeader, String[] aCipherAlgorithms)
 	{
 		//Debug.hexDump(aHeader);
 
@@ -151,7 +183,6 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 		}
 
 		// Now we have the correct password, cipher, hash algorithm, and volume type
-
 		// Check the version required to handle this volume
 		if (requiredProgramVersion > VERSION_NUM)
 		{
@@ -178,7 +209,6 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 //		System.out.println("EncryptedAreaStart="+mVolumeDataAreaOffset);
 //		System.out.println("EncryptedAreaLength="+mVolumeDataAreaLength);
 //		System.out.println("HeaderFlags="+headerFlags);
-
 		mCiphers = new Cipher[aCipherAlgorithms.length];
 		mTweakCiphers = new Cipher[aCipherAlgorithms.length];
 
@@ -195,31 +225,50 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 
 	private static Cipher getCipherInstance(String aAlgorithm)
 	{
-		if (aAlgorithm.equals("aes")) return new AES();
-		if (aAlgorithm.equals("serpent")) return new Serpent();
-		if (aAlgorithm.equals("twofish")) return new Twofish();
+		if (aAlgorithm.equals("aes"))
+		{
+			return new AES();
+		}
+		if (aAlgorithm.equals("serpent"))
+		{
+			return new Serpent();
+		}
+		if (aAlgorithm.equals("twofish"))
+		{
+			return new Twofish();
+		}
 		throw new RuntimeException();
 	}
 
 
 	private static MessageDigest getDigestInstance(String aAlgorithm)
 	{
-		if (aAlgorithm.equals("sha512")) return new SHA512();
-		if (aAlgorithm.equals("ripemd160")) return new RIPEMD160();
-		if (aAlgorithm.equals("whirlpool")) return new Whirlpool();
+		if (aAlgorithm.equals("sha512"))
+		{
+			return new SHA512();
+		}
+		if (aAlgorithm.equals("ripemd160"))
+		{
+			return new RIPEMD160();
+		}
+		if (aAlgorithm.equals("whirlpool"))
+		{
+			return new Whirlpool();
+		}
 		throw new RuntimeException();
 	}
 
 
 	private class Worker implements Callable<Boolean>
 	{
-		private byte [] mHeader;
-		private String [] mCipherAlgorithms;
+		private byte[] mHeader;
+		private String[] mCipherAlgorithms;
 		private String mDigestAlgorithm;
 		private int mIterationCount;
-		private byte [] mPassword;
+		private byte[] mPassword;
 
-		Worker(byte[] aHeader, String[] aCipherAlgorithms, String aDigestAlgorithm, int aIterationCount, byte [] aPassword)
+
+		Worker(byte[] aHeader, String[] aCipherAlgorithms, String aDigestAlgorithm, int aIterationCount, byte[] aPassword)
 		{
 			mHeader = aHeader;
 			mCipherAlgorithms = aCipherAlgorithms;
@@ -227,6 +276,7 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 			mIterationCount = aIterationCount;
 			mPassword = aPassword;
 		}
+
 
 		@Override
 		public Boolean call()
@@ -236,11 +286,11 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 				//System.out.println("start digest="+mDigestAlgorithm+", cipher="+Arrays.asList(mCipherAlgorithms));
 				HMAC hmac = new HMAC(TrueCryptPageStore.getDigestInstance(mDigestAlgorithm), mPassword);
 				int totalKeyLength = 32 * mCipherAlgorithms.length * 2;
-				byte [] salt = ByteArray.copy(mHeader, HEADER_SALT_OFFSET, PKCS5_SALT_SIZE);
-				byte [] keyBytes = PBKDF2.generateKeyBytes(hmac, salt, mIterationCount, totalKeyLength);
+				byte[] salt = ByteArray.copy(mHeader, HEADER_SALT_OFFSET, PKCS5_SALT_SIZE);
+				byte[] keyBytes = PBKDF2.generateKeyBytes(hmac, salt, mIterationCount, totalKeyLength);
 				XTS xts = new XTS(512);
 
-				for (int i = mCipherAlgorithms.length; --i>=0;)
+				for (int i = mCipherAlgorithms.length; --i >= 0;)
 				{
 					Cipher cipher = TrueCryptPageStore.getCipherInstance(mCipherAlgorithms[i]);
 					Cipher tweakCipher = TrueCryptPageStore.getCipherInstance(mCipherAlgorithms[i]);
@@ -284,17 +334,17 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	@Override
 	public void read(long aPageIndex, byte[] aBuffer, int aOffset, int aLength) throws IOException
 	{
-		long sectorIndex = mVolumeDataAreaOffset/ENCRYPTION_DATA_UNIT_SIZE + aPageIndex;
+		long sectorIndex = mVolumeDataAreaOffset / ENCRYPTION_DATA_UNIT_SIZE + aPageIndex;
 
 		mPageStore.read(sectorIndex, aBuffer, aOffset, aLength);
 
 		XTS xts = new XTS(512);
 
-		for (int j = 0; j < aLength/512; j++)
+		for (int j = 0; j < aLength / 512; j++)
 		{
 			for (int i = mCiphers.length; --i >= 0;)
 			{
-				xts.decrypt(aBuffer, aOffset+512*j, 512+0*aLength, sectorIndex+j, mCiphers[i], mTweakCiphers[i]);
+				xts.decrypt(aBuffer, aOffset + 512 * j, 512 + 0 * aLength, sectorIndex + j, mCiphers[i], mTweakCiphers[i]);
 			}
 		}
 	}
@@ -310,9 +360,9 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	@Override
 	public void write(long aPageIndex, byte[] aBuffer, int aOffset, int aLength) throws IOException
 	{
-		long sectorIndex = mVolumeDataAreaOffset/ENCRYPTION_DATA_UNIT_SIZE + aPageIndex;
+		long sectorIndex = mVolumeDataAreaOffset / ENCRYPTION_DATA_UNIT_SIZE + aPageIndex;
 
-		byte [] temp = new byte[aLength];
+		byte[] temp = new byte[aLength];
 		System.arraycopy(aBuffer, aOffset, temp, 0, aLength);
 
 		XTS xts = new XTS(512);
@@ -367,6 +417,6 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	@Override
 	public long getPageCount() throws IOException
 	{
-		return mPageStore.getPageCount() - mVolumeDataAreaOffset/ENCRYPTION_DATA_UNIT_SIZE;
+		return mPageStore.getPageCount() - mVolumeDataAreaOffset / ENCRYPTION_DATA_UNIT_SIZE;
 	}
 }

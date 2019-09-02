@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import org.terifan.fat32.FatFile;
-import org.terifan.truecrypt.TrueCryptFileSystem;
+import org.terifan.fat32.FatFileSystem;
+import org.terifan.pagestore.FilePageStore;
+import org.terifan.truecrypt.TrueCryptPageStore;
 
 
 public class Example
@@ -13,7 +15,7 @@ public class Example
 	{
 		try
 		{
-			try (TrueCryptFileSystem fs = new TrueCryptFileSystem(new File("d:/test.tc"), "password"))
+			try (FatFileSystem fs = new FatFileSystem(TrueCryptPageStore.open(new FilePageStore(new File("d:/test.tc")), "password")))
 			{
 				FatFile file = fs.getFile("/Wallpapers Fantasy/darth-vader-hd-1080p-wallpaper-full-hd-wallpaper.jpg");
 
