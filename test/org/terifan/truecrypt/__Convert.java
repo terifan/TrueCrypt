@@ -1,4 +1,4 @@
-package org.terifan.util;
+package org.terifan.truecrypt;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -6,9 +6,10 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collection;
+import org.terifan.util.ByteArray;
 
 
-public class Convert
+class __Convert
 {
 	private final static char[] HEX = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
@@ -17,7 +18,7 @@ public class Convert
 	public final static int HOURS = 60 * MINUTES;
 
 
-	private Convert()
+	private __Convert()
 	{
 	}
 

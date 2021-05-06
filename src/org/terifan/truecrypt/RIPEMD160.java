@@ -1,7 +1,6 @@
 package org.terifan.truecrypt;
 
 import java.security.MessageDigest;
-import static org.terifan.util.Convert.toHexString;
 
 
 /**
@@ -69,7 +68,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
 		}
 	}
 
-	
+
 	private void processLength(long bitLength)
 	{
 		if (xOff > 14)
@@ -81,7 +80,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
 		X[15] = (int)(bitLength >>> 32);
 	}
 
-	
+
 	private void unpackWord(int word, byte[] out, int outOff)
 	{
 		out[outOff] = (byte)word;
@@ -118,7 +117,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
 		return buf;
     }
 
-	
+
 	@Override
 	protected void engineUpdate(byte in)
     {
@@ -162,7 +161,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
         }
     }
 
-	
+
     private void finish()
     {
 		long bitLength = byteCount << 3;
@@ -205,25 +204,25 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
         }
     }
 
-	
+
 	private int RL(int x, int n)
     {
         return (x << n) | (x >>> (32 - n));
     }
 
-	
+
 	private int f1(int x, int y, int z)
     {
         return x ^ y ^ z;
     }
 
-	
+
 	private int f2(int x, int y, int z)
     {
         return (x & y) | (~x & z);
     }
 
-	
+
 	private int f3(int x, int y, int z)
     {
         return (x | ~y) ^ z;
@@ -241,7 +240,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
         return x ^ (y | ~z);
     }
 
-	
+
     protected void processBlock()
     {
         int a, aa;
@@ -473,7 +472,7 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
 	public Object clone() throws CloneNotSupportedException
 	{
 		RIPEMD160 instance = new RIPEMD160();
-		
+
 		instance.H0 = this.H0;
 		instance.H1 = this.H1;
 		instance.H2 = this.H2;
@@ -486,30 +485,5 @@ final class RIPEMD160 extends MessageDigest implements Cloneable
 		instance.xOff = this.xOff;
 
 		return instance;
-	}
-
-
-	public static boolean selftest()
-	{
-		MessageDigest md = new RIPEMD160();
-		boolean ok = true;
-
-		ok &= "9C1185A5C5E9FC54612808977EE8F548B2258D31".equals(toHexString(md.digest("".getBytes())));
-		ok &= "0BDC9D2D256B3EE9DAAE347BE6F4DC835A467FFE".equals(toHexString(md.digest("a".getBytes())));
-		ok &= "8EB208F7E05D987A9B044A8E98C6B087F15A0BFC".equals(toHexString(md.digest("abc".getBytes())));
-		ok &= "5D0689EF49D2FAE572B881B123A85FFA21595F36".equals(toHexString(md.digest("message digest".getBytes())));
-		ok &= "F71C27109C692C1B56BBDCEB5B9D2865B3708DBC".equals(toHexString(md.digest("abcdefghijklmnopqrstuvwxyz".getBytes())));
-		ok &= "12A053384A9C0C88E405A06C27DCF49ADA62EB2B".equals(toHexString(md.digest("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq".getBytes())));
-		ok &= "B0E20B6E3116640286ED3A87A5713079B21F5189".equals(toHexString(md.digest("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".getBytes())));
-		ok &= "9B752E45573D4B39F4DBD3323CAB82BF63326BFB".equals(toHexString(md.digest("12345678901234567890123456789012345678901234567890123456789012345678901234567890".getBytes())));
-
-		for (int i = 0; i < 1000000; i++)
-		{
-			md.update((byte)'a');
-		}
-
-		ok &= "52783243C1697BDBE16D37F97F68F08325DC1528".equals(toHexString(md.digest()));
-
-		return ok;
 	}
 }
