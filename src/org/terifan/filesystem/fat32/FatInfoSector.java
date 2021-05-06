@@ -1,4 +1,4 @@
-package org.terifan.fat32;
+package org.terifan.filesystem.fat32;
 
 import java.io.IOException;
 import static org.terifan.util.ByteArray.LE;

@@ -3,13 +3,13 @@ package example;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import org.terifan.fat32.FatFile;
-import org.terifan.fat32.FatFileSystem;
+import org.terifan.filesystem.fat32.FatFile;
+import org.terifan.filesystem.fat32.FatFileSystem;
 import org.terifan.pagestore.FilePageStore;
 import org.terifan.truecrypt.TrueCryptPageStore;
 
 
-public class Example
+public class ExampleFAT
 {
 	public static void main(String... args)
 	{

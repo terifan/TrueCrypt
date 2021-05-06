@@ -1,4 +1,4 @@
-package org.terifan.fat32;
+package org.terifan.filesystem.fat32;
 
 import org.terifan.pagestore.PageStore;
 import java.io.IOException;
