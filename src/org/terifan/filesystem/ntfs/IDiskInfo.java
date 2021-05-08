@@ -19,10 +19,10 @@ public interface IDiskInfo
 	long getMft2StartLcn();
 
 
-	long getClustersPerMftRecord();
+	int getClustersPerMftRecord();
 
 
-	long getClustersPerIndexRecord();
+	int getClustersPerIndexRecord();
 
 
 	long getBytesPerMftRecord();

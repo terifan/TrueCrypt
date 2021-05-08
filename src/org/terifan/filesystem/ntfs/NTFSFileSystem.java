@@ -1,9 +1,7 @@
 package org.terifan.filesystem.ntfs;
 
-import java.io.FileOutputStream;
 import org.terifan.pagestore.PageStore;
 import java.io.IOException;
-import org.terifan.util.Debug;
 
 
 public class NTFSFileSystem implements AutoCloseable
@@ -15,9 +13,12 @@ public class NTFSFileSystem implements AutoCloseable
 	{
 		mPageStore = aPageStore;
 
-		byte[] buffer = new byte[221440 / 512 * 512 + 512];
+		NtfsReader reader = new NtfsReader(mPageStore, RetrieveMode.All.CODE);
 
-		mPageStore.read(16032, buffer);
+		for (INode node : reader.GetNodes(""))
+		{
+			System.out.println(node);
+		}
 
 //		Debug.hexDump(buffer);
 	}

@@ -2,16 +2,24 @@ package org.terifan.filesystem.ntfs;
 
 
 // Allow one to retrieve only needed information to reduce memory footprint.
-public enum RetrieveMode
+enum RetrieveMode
 {
 	// Includes the name, size, attributes and hierarchical information only.
-	Minimal,
+	Minimal(1),
 	// Retrieve the lastModified, lastAccessed and creationTime.
-	StandardInformations,
+	StandardInformations(2),
 	// Retrieve file's streams information.
-	Streams,
+	Streams(4),
 	// Retrieve file's fragments information.
-	Fragments,
+	Fragments(8),
 	// Retrieve all information available.
-	All
+	All(1 + 2 + 4 + 8);
+
+	final int CODE;
+
+
+	private RetrieveMode(int aCode)
+	{
+		CODE = aCode;
+	}
 }
