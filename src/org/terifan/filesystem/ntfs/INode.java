@@ -9,10 +9,10 @@ public interface INode
 	int getAttributes();
 
 
-	long getNodeIndex();
+	int getNodeIndex();
 
 
-	long getParentNodeIndex();
+	int getParentNodeIndex();
 
 
 	String getName();
@@ -27,11 +27,11 @@ public interface INode
 	List<IStream> getStreams();
 
 
-	long getCreationTime();
+	DateTime getCreationTime();
 
 
-	long getLastChangeTime();
+	DateTime getLastChangeTime();
 
 
-	long getLastAccessTime();
+	DateTime getLastAccessTime();
 }
