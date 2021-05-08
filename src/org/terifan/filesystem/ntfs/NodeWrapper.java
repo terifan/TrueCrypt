@@ -73,7 +73,7 @@ class NodeWrapper implements INode
 		if (_reader._standardInformations == null)
 			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
 
-		return DateTime.FromFileTimeUtc(_reader._standardInformations[_nodeIndex].CreationTime);
+		return _reader._standardInformations[_nodeIndex].CreationTime;
 	}
 
 	public DateTime getLastChangeTime()
@@ -81,7 +81,7 @@ class NodeWrapper implements INode
 		if (_reader._standardInformations == null)
 			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
 
-		return DateTime.FromFileTimeUtc(_reader._standardInformations[_nodeIndex].LastChangeTime);
+		return _reader._standardInformations[_nodeIndex].LastChangeTime;
 	}
 
 	public DateTime getLastAccessTime()
@@ -89,6 +89,6 @@ class NodeWrapper implements INode
 		if (_reader._standardInformations == null)
 			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
 
-		return DateTime.FromFileTimeUtc(_reader._standardInformations[_nodeIndex].LastAccessTime);
+		return _reader._standardInformations[_nodeIndex].LastAccessTime;
 	}
 }

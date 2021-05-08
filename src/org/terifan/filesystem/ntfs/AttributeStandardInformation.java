@@ -3,10 +3,10 @@ package org.terifan.filesystem.ntfs;
 
 class AttributeStandardInformation
 {
-	public long CreationTime; // UInt64
-	public long FileChangeTime; // UInt64
-	public long MftChangeTime; // UInt64
-	public long LastAccessTime; // UInt64
+	public DateTime CreationTime; // UInt64
+	public DateTime FileChangeTime; // UInt64
+	public DateTime MftChangeTime; // UInt64
+	public DateTime LastAccessTime; // UInt64
 	public int FileAttributes; // UInt32       /* READ_ONLY=0x01, HIDDEN=0x02, SYSTEM=0x04, VOLUME_ID=0x08, ARCHIVE=0x20, DEVICE=0x40 */
 	public int MaximumVersions; // UInt32
 	public int VersionNumber; // UInt32

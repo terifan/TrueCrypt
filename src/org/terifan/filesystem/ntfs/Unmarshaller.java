@@ -1,25 +1,42 @@
 package org.terifan.filesystem.ntfs;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.Constructor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 class Unmarshaller
 {
+	private final static String CYAN = "\033[0;36m";
+	private final static String GREEN = "\033[0;32m";
+	private final static String YELLOW = "\033[0;33m";
+	private final static String MAGENTA = "\033[0;35m";
+	private final static String RESET = "\033[0m";
+
+
 	public static <T> T unmarshal(Class<T> aType, byte[] aBuffer, int aOffset)
 	{
-		return unmarshal(aType, aBuffer, aOffset, "");
+		return unmarshal(aType, aBuffer, new AtomicInteger(aOffset));
 	}
 
 
-	private static <T> T unmarshal(Class<T> aType, byte[] aBuffer, int aOffset, String aIndent)
+	public static <T> T unmarshal(Class<T> aType, byte[] aBuffer, AtomicInteger aOffset)
+	{
+		System.out.println(CYAN + aType.getSimpleName() + RESET + " {");
+
+		T v = unmarshal(aType, aBuffer, aOffset, "    ");
+
+		System.out.println("}");
+
+		return v;
+	}
+
+
+	private static <T> T unmarshal(Class<T> aType, byte[] aBuffer, AtomicInteger aOffset, String aIndent)
 	{
 		T instance;
 
@@ -43,32 +60,45 @@ class Unmarshaller
 
 				if (field.getType() == Byte.TYPE)
 				{
-					int v = 0;
-					v += (0xff & aBuffer[aOffset++]);
-					value = (byte)v;
-
+					value = getByte(aBuffer, aOffset.getAndAdd(1));
 					print(aIndent, field, value);
 				}
 				else if (field.getType() == Short.TYPE)
 				{
-					value = getShort(aBuffer, aOffset);
-					aOffset += 2;
-
+					value = getShort(aBuffer, aOffset.getAndAdd(2));
 					print(aIndent, field, value);
 				}
 				else if (field.getType() == Integer.TYPE)
 				{
-					value = getInt(aBuffer, aOffset);
-					aOffset += 4;
-
+					value = getInt(aBuffer, aOffset.getAndAdd(4));
 					print(aIndent, field, value);
 				}
 				else if (field.getType() == Long.TYPE)
 				{
-					value = getLong(aBuffer, aOffset);
-					aOffset += 8;
-
+					value = getLong(aBuffer, aOffset.getAndAdd(8));
 					print(aIndent, field, value);
+				}
+				else if (field.getType() == String.class)
+				{
+					Hint hint = field.getAnnotation(Hint.class);
+
+					int len = ((Number)aType.getField(hint.length()).get(instance)).intValue();
+
+					switch (hint.format())
+					{
+						case UNICODE:
+							StringBuilder sb = new StringBuilder();
+							for (int j = 0; j < len; j++)
+							{
+								sb.append((char)getShort(aBuffer, aOffset.getAndAdd(2)));
+							}
+							value = sb.toString();
+							break;
+						default:
+							throw new IllegalArgumentException();
+					}
+
+					print(aIndent, field, "\"" + MAGENTA + value + YELLOW + "\"");
 				}
 				else if (field.getType().isArray())
 				{
@@ -79,7 +109,8 @@ class Unmarshaller
 						byte[] dst = (byte[])field.get(instance);
 						for (int j = 0; j < dst.length; j++)
 						{
-							dst[j] = aBuffer[aOffset++];
+							dst[j] = aBuffer[aOffset.getAndAdd(1)];
+
 							if (j < 16)
 							{
 								if (sb.length() > 0)
@@ -95,7 +126,7 @@ class Unmarshaller
 						}
 						value = dst;
 					}
-					else if (field.getType().getComponentType() == Character.class)
+					else if (field.getType().getComponentType() == Character.TYPE)
 					{
 						char[] dst = (char[])field.get(instance);
 						if (dst == null)
@@ -106,8 +137,8 @@ class Unmarshaller
 						}
 						for (int j = 0; j < dst.length; j++)
 						{
-							dst[j] = (char)getShort(aBuffer, aOffset);
-							aOffset += 2;
+							dst[j] = (char)getShort(aBuffer, aOffset.getAndAdd(2));
+
 							if (j < 16)
 							{
 								if (sb.length() > 0)
@@ -123,16 +154,34 @@ class Unmarshaller
 						}
 						value = dst;
 					}
+					else
+					{
+						throw new IllegalArgumentException("Unsupported: " + field);
+					}
 
 					print(aIndent, field, "[" + sb.toString() + "]");
 				}
 				else
 				{
-					print(aIndent, field, "{");
+					if (field.getType().getAnnotation(ValueType.class) != null)
+					{
+						for (Constructor c : field.getType().getConstructors())
+						{
+							if (c.getParameterCount() == 1)
+							{
+								value = field.getType().getConstructor(c.getParameterTypes()[0]).newInstance(read(c.getParameterTypes()[0], aBuffer, aOffset));
+								break;
+							}
+						}
 
-					value = unmarshal(field.getType(), aBuffer, aOffset, aIndent + "   ");
-
-					System.out.println(aIndent + "}");
+						print(aIndent, field, "\"" + MAGENTA + value + YELLOW + "\"");
+					}
+					else
+					{
+						System.out.println(aIndent + CYAN + field.getType().getSimpleName() + " " + GREEN + field.getName() + RESET + " = {");
+						value = unmarshal(field.getType(), aBuffer, aOffset, aIndent + "    ");
+						System.out.println(aIndent + "}");
+					}
 				}
 
 				field.set(instance, value);
@@ -147,9 +196,40 @@ class Unmarshaller
 	}
 
 
+	private static Object read(Class aType, byte[] aBuffer, AtomicInteger aOffset)
+	{
+		if (aType == Byte.TYPE || aType == Byte.class)
+		{
+			return getByte(aBuffer, aOffset.getAndAdd(1));
+		}
+		if (aType == Short.TYPE || aType == Short.class)
+		{
+			return getShort(aBuffer, aOffset.getAndAdd(2));
+		}
+		if (aType == Integer.TYPE || aType == Integer.class)
+		{
+			return getInt(aBuffer, aOffset.getAndAdd(4));
+		}
+		if (aType == Long.TYPE || aType == Long.class)
+		{
+			return getLong(aBuffer, aOffset.getAndAdd(8));
+		}
+
+		throw new IllegalArgumentException("" + aType);
+	}
+
+
 	private static void print(String aIndent, Field aField, Object aValue)
 	{
-		System.out.println(aIndent + aField.getType().getSimpleName() + " " + aField.getName() + " = " + aValue);
+		System.out.println(aIndent + CYAN + aField.getType().getSimpleName() + " " + GREEN + aField.getName() + " = " + YELLOW + aValue + RESET + ";");
+	}
+
+
+	static byte getByte(byte[] aBuffer, int aOffset)
+	{
+		int v = 0;
+		v += (0xff & aBuffer[aOffset++]);
+		return (byte)v;
 	}
 
 
@@ -160,6 +240,7 @@ class Unmarshaller
 		v += (0xff & aBuffer[aOffset++]) << 8;
 		return (short)v;
 	}
+
 
 	static void setShort(byte[] aBuffer, int aOffset, short aValue)
 	{
@@ -194,9 +275,25 @@ class Unmarshaller
 	}
 
 
-	@Target(value = {ElementType.METHOD, ElementType.FIELD}) @Retention(value = RetentionPolicy.RUNTIME)
+	@Target(value = {ElementType.FIELD}) @Retention(value = RetentionPolicy.RUNTIME)
 	public @interface Hint
 	{
 		public String length() default "";
+
+		public Format format() default Format.UNICODE;
+	}
+
+
+	@Target(value = {ElementType.TYPE}) @Retention(value = RetentionPolicy.RUNTIME)
+	public @interface ValueType
+	{
+	}
+
+
+	public enum Format
+	{
+		BYTES,
+		UNICODE,
+		UTF8,
 	}
 }

@@ -15,6 +15,7 @@ import org.terifan.pagestore.PageStore;
 import org.terifan.util.Debug;
 
 
+// https://sourceforge.net/p/ntfsreader/
 public class NtfsReader
 {
 	private long VIRTUALFRAGMENT = -1L; // UInt64
@@ -262,7 +263,7 @@ public class NtfsReader
 
 	/// Decode the RunLength value.
 //	private static Int64 ProcessRunLength(byte* runData, UInt32 runDataLength, Int32 runLengthSize, ref UInt32 index)
-	private static long ProcessRunLength(byte[] runData, int runDataLength, int runLengthSize, AtomicInteger index) // Int64, Int32, Int32, ref Int32
+	private static long ProcessRunLength(byte[] runData, int runDataEnd, int runLengthSize, AtomicInteger index) // Int64, Int32, Int32, ref Int32
 	{
 //		Int64 runLength = 0;
 //		byte* runLengthBytes = (byte*)&runLength;
@@ -278,7 +279,7 @@ public class NtfsReader
 		for (int i = 0; i < runLengthSize; i++)
 		{
 			runLengthBytes[i] = runData[index.get()];
-			if (index.incrementAndGet() >= runDataLength)
+			if (index.incrementAndGet() >= runDataEnd)
 				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
 		}
 		return runLength;
@@ -304,7 +305,7 @@ public class NtfsReader
 //				runOffsetBytes[i++] = 0xFF;
 //
 //		return runOffset;
-	private static long ProcessRunOffset(byte[] runData, int runDataLength, int runOffsetSize, AtomicInteger index) // UInt64
+	private static long ProcessRunOffset(byte[] runData, int runDataEnd, int runOffsetSize, AtomicInteger index) // UInt64
 	{
 		long runOffset = 0;
 		byte[] runOffsetBytes = new byte[runOffsetSize];
@@ -313,7 +314,7 @@ public class NtfsReader
 		for (i = 0; i < runOffsetSize; i++)
 		{
 			runOffsetBytes[i] = runData[index.get()];
-			if (index.incrementAndGet() >= runDataLength)
+			if (index.incrementAndGet() >= runDataEnd)
 				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
 		}
 
@@ -330,7 +331,7 @@ public class NtfsReader
 	private byte[] ProcessNonResidentData(
 		byte[] RunData,
 		int RunDataLength, // UInt32
-		long Offset, // UInt64         /* Bytes to skip from begin of data. */
+		int offset, // UInt64         /* Bytes to skip from begin of data. */
 		long WantedLength // UInt64    /* Number of bytes to read. */
 		)
 	{
@@ -364,9 +365,9 @@ public class NtfsReader
 			if (Index.incrementAndGet() >= RunDataLength)
 				throw new IllegalArgumentException("Error: datarun is longer than buffer, the MFT may be corrupt.");
 
-			long RunLength = ProcessRunLength(RunData, RunDataLength, RunLengthSize, Index);
+			long RunLength = ProcessRunLength(RunData, offset + RunDataLength, RunLengthSize, Index);
 
-			long RunOffset = ProcessRunOffset(RunData, RunDataLength, RunOffsetSize, Index);
+			long RunOffset = ProcessRunOffset(RunData, offset + RunDataLength, RunOffsetSize, Index);
 
 			// Ignore virtual extents.
 			if (RunOffset == 0 || RunLength == 0)
@@ -381,49 +382,48 @@ public class NtfsReader
 			long ExtentLcn = (long)(Lcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
 			long ExtentLength = (long)(RunLength * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
 
-			if (Offset >= ExtentVcn + ExtentLength)
+			if (offset >= ExtentVcn + ExtentLength)
 				continue;
 
-			if (Offset > ExtentVcn)
+			if (offset > ExtentVcn)
 			{
-				ExtentLcn = ExtentLcn + Offset - ExtentVcn;
-				ExtentLength = ExtentLength - (Offset - ExtentVcn);
-				ExtentVcn = Offset;
+				ExtentLcn = ExtentLcn + offset - ExtentVcn;
+				ExtentLength = ExtentLength - (offset - ExtentVcn);
+				ExtentVcn = offset;
 			}
 
-			if (Offset + WantedLength <= ExtentVcn)
+			if (offset + WantedLength <= ExtentVcn)
 				continue;
 
-			if (Offset + WantedLength < ExtentVcn + ExtentLength)
-				ExtentLength = Offset + WantedLength - ExtentVcn;
+			if (offset + WantedLength < ExtentVcn + ExtentLength)
+				ExtentLength = offset + WantedLength - ExtentVcn;
 
 			if (ExtentLength == 0)
 				continue;
 
 //			ReadFile(bufPtr + ExtentVcn - Offset, ExtentLength, ExtentLcn);
-			ReadFile(buffer, (int)(ExtentVcn - Offset), (int)ExtentLength, ExtentLcn);
+			ReadFile(buffer, (int)(ExtentVcn - offset), (int)ExtentLength, ExtentLcn);
 		}
 
 		return buffer;
 	}
 
 	/// Process each attributes and gather information when necessary
-//	private void ProcessAttributes(ref Node node, UInt32 nodeIndex, byte* ptr, UInt64 BufLength, UInt16 instance, int depth, List<Stream> streams, bool isMftNode)
-	private void ProcessAttributes(AtomicReference<Node> node, int nodeIndex, byte[] buffer, int ptr, long BufLength, short instance, int depth, List<Stream> streams, boolean isMftNode)
+	private void ProcessAttributes(AtomicReference<Node> node, int nodeIndex, byte[] aBuffer, int ptr, long BufLength, short instance, int depth, List<Stream> streams, boolean isMftNode)
 	{
 		Attribute attribute = null;
 
-		for (int AttributeOffset = ptr; AttributeOffset < ptr + BufLength; AttributeOffset += attribute.Length)
+		for (int AttributeOffset = ptr, bufEnd = ptr + (int)BufLength; AttributeOffset < bufEnd; AttributeOffset += attribute.Length)
 		{
 			// exit the loop if end-marker.
-			if ((AttributeOffset + 4 <= BufLength) && getInt(buffer, AttributeOffset) == -1)
+			if ((AttributeOffset + 4 <= bufEnd) && getInt(aBuffer, AttributeOffset) == -1)
 				break;
 
-			attribute = unmarshal(Attribute.class, buffer, AttributeOffset);
+			attribute = unmarshal(Attribute.class, aBuffer, AttributeOffset);
 
 			//make sure we did read the data correctly
-			if ((AttributeOffset + 4 > BufLength) || attribute.Length < 3 || (AttributeOffset + attribute.Length > BufLength))
-				throw new IllegalStateException("Error: attribute in Inode %I64u is bigger than the data, the MFT may be corrupt.");
+			if ((AttributeOffset + 4 > bufEnd) || attribute.Length < 3 || (AttributeOffset + attribute.Length > bufEnd))
+				throw new IllegalStateException("Error: attribute in Inode %I64u is bigger than the data, the MFT may be corrupt." + AttributeOffset+" "+attribute.Length+" "+BufLength+" "+attribute.Length);
 
 			//attributes list needs to be processed at the end
 			if (attribute.AttributeType == AttributeType.AttributeAttributeList.CODE)
@@ -432,17 +432,17 @@ public class NtfsReader
 			/* If the Instance does not equal the AttributeNumber then ignore the attribute.
 			   This is used when an AttributeList is being processed and we only want a specific
 			   instance. */
-			if ((instance != 65535) && (instance != attribute.AttributeNumber))
+			if ((instance != (short)65535) && (instance != attribute.AttributeNumber))
 				continue;
 
 			if (attribute.Nonresident == 0)
 			{
-				ResidentAttribute residentAttribute = unmarshal(ResidentAttribute.class, buffer, AttributeOffset);
+				ResidentAttribute residentAttribute = unmarshal(ResidentAttribute.class, aBuffer, AttributeOffset);
 
 				switch (AttributeType.decode(attribute.AttributeType))
 				{
 					case AttributeFileName:
-						AttributeFileName attributeFileName = unmarshal(AttributeFileName.class, buffer, AttributeOffset + residentAttribute.ValueOffset);
+						AttributeFileName attributeFileName = unmarshal(AttributeFileName.class, aBuffer, AttributeOffset + residentAttribute.ValueOffset);
 
 						if (attributeFileName.ParentDirectory.InodeNumberHighPart > 0)
 							throw new IllegalStateException("48 bits inode are not supported to reduce memory footprint.");
@@ -451,12 +451,13 @@ public class NtfsReader
 						node.get().ParentNodeIndex = attributeFileName.ParentDirectory.InodeNumberLowPart;
 
 						if (attributeFileName.NameType == 1 || node.get().NameIndex == 0)
-							node.get().NameIndex = GetNameIndex(new String(attributeFileName.Name, 0, attributeFileName.NameLength));
+//							node.get().NameIndex = GetNameIndex(new String(attributeFileName.Name, 0, attributeFileName.NameLength));
+							node.get().NameIndex = GetNameIndex(attributeFileName.Name);
 
 						break;
 
 					case AttributeStandardInformation:
-						AttributeStandardInformation attributeStandardInformation = unmarshal(AttributeStandardInformation.class, buffer, AttributeOffset + residentAttribute.ValueOffset);
+						AttributeStandardInformation attributeStandardInformation = unmarshal(AttributeStandardInformation.class, aBuffer, AttributeOffset + residentAttribute.ValueOffset);
 
 						node.get().Attributes |= attributeStandardInformation.FileAttributes;
 
@@ -477,7 +478,7 @@ public class NtfsReader
 			}
 			else
 			{
-				NonResidentAttribute nonResidentAttribute = unmarshal(NonResidentAttribute.class, buffer, AttributeOffset);
+				NonResidentAttribute nonResidentAttribute = unmarshal(NonResidentAttribute.class, aBuffer, AttributeOffset);
 
 				//save the length (number of bytes) of the data.
 				if (attribute.AttributeType == AttributeType.AttributeData.CODE && node.get().Size == 0)
@@ -488,7 +489,7 @@ public class NtfsReader
 					//extract the stream name
 					int streamNameIndex = 0;
 					if (attribute.NameLength > 0)
-						streamNameIndex = GetNameIndex(new String(buffer, (AttributeOffset + attribute.NameOffset), (int)attribute.NameLength));
+						streamNameIndex = GetNameIndex(new String(aBuffer, (AttributeOffset + attribute.NameOffset), (int)attribute.NameLength));
 
 					//find or create the stream
 					Stream stream =	SearchStream(streams, AttributeType.decode(attribute.AttributeType), streamNameIndex);
@@ -507,7 +508,7 @@ public class NtfsReader
 						ProcessFragments(
 							node,
 							stream,
-							buffer,
+							aBuffer,
 							AttributeOffset + nonResidentAttribute.RunArrayOffset,
 							attribute.Length - nonResidentAttribute.RunArrayOffset,
 							nonResidentAttribute.StartingVcn
@@ -545,12 +546,12 @@ public class NtfsReader
 			runLengthSize = (runData[index.get()] & 0x0F);
 			runOffsetSize = ((runData[index.get()] & 0xF0) >> 4);
 
-			if (index.incrementAndGet() >= runDataLength)
-				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt.");
+			if (index.incrementAndGet() >= offset + runDataLength)
+				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt. " + index.incrementAndGet()+" >= "+offset+" + "+runDataLength);
 
-			long runLength = ProcessRunLength(runData, runDataLength, runLengthSize, index);
+			long runLength = ProcessRunLength(runData, offset + runDataLength, runLengthSize, index);
 
-			long runOffset = ProcessRunOffset(runData, runDataLength, runOffsetSize, index);
+			long runOffset = ProcessRunOffset(runData, offset + runDataLength, runOffsetSize, index);
 
 			lcn += runOffset;
 			vcn += runLength;
@@ -573,12 +574,11 @@ public class NtfsReader
 
 	/// Process an actual MFT record from the buffer
 //	private boolean ProcessMftRecord(byte* buffer, UInt64 length, UInt32 nodeIndex, out Node node, List<Stream> streams, bool isMftNode)
-	private boolean ProcessMftRecord(byte[] aBuffer, int offset, long  length, int nodeIndex, AtomicReference<Node> node, List<Stream> streams, boolean isMftNode)
+	private boolean ProcessMftRecord(byte[] aBuffer, int offset, long length, int nodeIndex, AtomicReference<Node> node, List<Stream> streams, boolean isMftNode)
 	{
 		node.set(new Node());
 
-		System.out.println("#####"+offset);
-		Debug.hexDump(aBuffer,1024);
+		Debug.hexDump(aBuffer, offset, (int)length);
 
 		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, aBuffer, offset);
 
@@ -607,7 +607,7 @@ public class NtfsReader
 		if ((ntfsFileRecordHeader.Flags & 2) == 2)
 			node.get().Attributes |= Attributes.Directory.CODE;
 
-		ProcessAttributes(node, nodeIndex, aBuffer, ntfsFileRecordHeader.AttributeOffset, length - (0xffff & ntfsFileRecordHeader.AttributeOffset), (short)65535, 0, streams, isMftNode);
+		ProcessAttributes(node, nodeIndex, aBuffer, (0xffff & ntfsFileRecordHeader.AttributeOffset), length - (0xffff & ntfsFileRecordHeader.AttributeOffset), (short)65535, 0, streams, isMftNode);
 
 		return true;
 	}

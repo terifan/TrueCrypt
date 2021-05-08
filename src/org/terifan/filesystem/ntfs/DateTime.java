@@ -1,10 +1,28 @@
 package org.terifan.filesystem.ntfs;
 
+import java.text.SimpleDateFormat;
 
-public class DateTime
+
+@Unmarshaller.ValueType
+class DateTime
 {
-	static DateTime FromFileTimeUtc(long aCreationTime)
+	public long time;
+
+
+	public DateTime()
 	{
-		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+
+	public DateTime(long aTime)
+	{
+		time = aTime;
+	}
+
+
+	@Override
+	public String toString()
+	{
+		return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(time / 10000 - 11644473600000L);
 	}
 }
