@@ -6,7 +6,7 @@ class NonResidentAttribute
 	public Attribute Attribute;
 	public long StartingVcn; // UInt64
 	public long LastVcn; // UInt64
-	public int RunArrayOffset;
+	public short RunArrayOffset;
 	public byte CompressionUnit;
 	public byte[] AlignmentOrReserved = new byte[5];
 	public long AllocatedSize; // UInt64

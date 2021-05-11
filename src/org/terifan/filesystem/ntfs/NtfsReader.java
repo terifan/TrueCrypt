@@ -261,152 +261,129 @@ public class NtfsReader
 	}
 
 
-	/// Decode the RunLength value.
-//	private static Int64 ProcessRunLength(byte* runData, UInt32 runDataLength, Int32 runLengthSize, ref UInt32 index)
-	private static long ProcessRunLength(byte[] runData, int runDataEnd, int runLengthSize, AtomicInteger index) // Int64, Int32, Int32, ref Int32
+	private static long ProcessRunLength(byte[] runData, int runLengthSize, AtomicInteger index) // Int64, Int32, Int32, ref Int32
 	{
-//		Int64 runLength = 0;
-//		byte* runLengthBytes = (byte*)&runLength;
-//		for (int i = 0; i < runLengthSize; i++)
-//		{
-//			runLengthBytes[i] = runData[index];
-//			if (++index >= runDataLength)
-//				throw new Exception("Datarun is longer than buffer, the MFT may be corrupt.");
-//		}
-//		return runLength;
 		long runLength = 0;
-		byte[] runLengthBytes = new byte[runLengthSize];
+//		long end = index.get() + runLengthSize;
 		for (int i = 0; i < runLengthSize; i++)
 		{
-			runLengthBytes[i] = runData[index.get()];
-			if (index.incrementAndGet() >= runDataEnd)
-				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
+			System.out.println("**"+(0xff & runData[index.get()]));
+
+			runLength += (long)(0xff & runData[index.getAndIncrement()]) << (8 * i);
+
+//			if (index.incrementAndGet() >= end)
+//				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
 		}
 		return runLength;
 	}
 
-	/// Decode the RunOffset value.
-//	private static Int64 ProcessRunOffset(byte* runData, UInt32 runDataLength, Int32 runOffsetSize, ref UInt32 index)
-//	{
-//		Int64 runOffset = 0;
-//		byte* runOffsetBytes = (byte*)&runOffset;
-//
-//		int i;
-//		for (i = 0; i < runOffsetSize; i++)
-//		{
-//			runOffsetBytes[i] = runData[index];
-//			if (++index >= runDataLength)
-//				throw new Exception("Datarun is longer than buffer, the MFT may be corrupt.");
-//		}
-//
-//		//process negative values
-//		if (runOffsetBytes[i - 1] >= 0x80)
-//			while (i < 8)
-//				runOffsetBytes[i++] = 0xFF;
-//
-//		return runOffset;
-	private static long ProcessRunOffset(byte[] runData, int runDataEnd, int runOffsetSize, AtomicInteger index) // UInt64
+	private static long ProcessRunOffset(byte[] runData, int runOffsetSize, AtomicInteger index) // UInt64
 	{
-		long runOffset = 0;
-		byte[] runOffsetBytes = new byte[runOffsetSize];
-
-		int i;
-		for (i = 0; i < runOffsetSize; i++)
+		byte[] runOffsetBytes = new byte[8];
+//		long end = index.get() + runOffsetSize;
+		int i = 0;
+		for (; i < runOffsetSize; i++)
 		{
-			runOffsetBytes[i] = runData[index.get()];
-			if (index.incrementAndGet() >= runDataEnd)
-				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
+			System.out.println("**"+(0xff & runData[index.get()]));
+
+			runOffsetBytes[i] = runData[index.getAndIncrement()];
+
+//			if (index.incrementAndGet() >= end)
+//				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
 		}
 
-		//process negative values
-		if (runOffsetBytes[i - 1] >= 0x80)
+		if ((0xff & runData[index.get() - 1]) >= 0x80)
+		{
 			while (i < 8)
+			{
 				runOffsetBytes[i++] = (byte)0xFF;
+			}
+		}
 
-		return runOffset;
+		return Unmarshaller.getLong(runOffsetBytes, 0);
 	}
 
 	/// Read the data that is specified in a RunData list from disk into memory,
 	/// skipping the first Offset bytes.
-	private byte[] ProcessNonResidentData(
-		byte[] RunData,
-		int RunDataLength, // UInt32
-		int offset, // UInt64         /* Bytes to skip from begin of data. */
-		long WantedLength // UInt64    /* Number of bytes to read. */
-		)
-	{
-		/* Sanity check. */
-		if (RunData == null || RunDataLength == 0)
-			throw new IllegalArgumentException("nothing to read");
-
-		if (WantedLength >= Integer.MAX_VALUE)
-			throw new IllegalArgumentException("too many bytes to read");
-
-		/* We have to round up the WantedLength to the nearest sector. For some
-		   reason or other Microsoft has decided that raw reading from disk can
-		   only be done by whole sector, even though ReadFile() accepts it's
-		   parameters in bytes. */
-		if (WantedLength % _diskInfo.BytesPerSector > 0)
-			WantedLength += _diskInfo.BytesPerSector - (WantedLength % _diskInfo.BytesPerSector);
-
-		/* Walk through the RunData and read the requested data from disk. */
-		AtomicInteger Index = new AtomicInteger(); // UInt32
-		long Lcn = 0; // Int64
-		long Vcn = 0; // Int64
-
-		byte[] buffer = new byte[(int)WantedLength];
-
-		while (RunData[Index.get()] != 0)
-		{
-			/* Decode the RunData and calculate the next Lcn. */
-			int RunLengthSize = (RunData[Index.get()] & 0x0F);
-			int RunOffsetSize = ((RunData[Index.get()] & 0xF0) >> 4);
-
-			if (Index.incrementAndGet() >= RunDataLength)
-				throw new IllegalArgumentException("Error: datarun is longer than buffer, the MFT may be corrupt.");
-
-			long RunLength = ProcessRunLength(RunData, offset + RunDataLength, RunLengthSize, Index);
-
-			long RunOffset = ProcessRunOffset(RunData, offset + RunDataLength, RunOffsetSize, Index);
-
-			// Ignore virtual extents.
-			if (RunOffset == 0 || RunLength == 0)
-				continue;
-
-			Lcn += RunOffset;
-			Vcn += RunLength;
-
-			/* Determine how many and which bytes we want to read. If we don't need
-			   any bytes from this extent then loop. */
-			long ExtentVcn = (long)((Vcn - RunLength) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-			long ExtentLcn = (long)(Lcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-			long ExtentLength = (long)(RunLength * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-
-			if (offset >= ExtentVcn + ExtentLength)
-				continue;
-
-			if (offset > ExtentVcn)
-			{
-				ExtentLcn = ExtentLcn + offset - ExtentVcn;
-				ExtentLength = ExtentLength - (offset - ExtentVcn);
-				ExtentVcn = offset;
-			}
-
-			if (offset + WantedLength <= ExtentVcn)
-				continue;
-
-			if (offset + WantedLength < ExtentVcn + ExtentLength)
-				ExtentLength = offset + WantedLength - ExtentVcn;
-
-			if (ExtentLength == 0)
-				continue;
-
-//			ReadFile(bufPtr + ExtentVcn - Offset, ExtentLength, ExtentLcn);
-			ReadFile(buffer, (int)(ExtentVcn - offset), (int)ExtentLength, ExtentLcn);
-		}
-
-		return buffer;
-	}
+//	private byte[] ProcessNonResidentData(
+//		byte[] RunData,
+//		int RunDataLength, // UInt32
+//		int offset, // UInt64         /* Bytes to skip from begin of data. */
+//		long WantedLength // UInt64    /* Number of bytes to read. */
+//		)
+//	{
+//		/* Sanity check. */
+//		if (RunData == null || RunDataLength == 0)
+//			throw new IllegalArgumentException("nothing to read");
+//
+//		if (WantedLength >= Integer.MAX_VALUE)
+//			throw new IllegalArgumentException("too many bytes to read");
+//
+//		/* We have to round up the WantedLength to the nearest sector. For some
+//		   reason or other Microsoft has decided that raw reading from disk can
+//		   only be done by whole sector, even though ReadFile() accepts it's
+//		   parameters in bytes. */
+//		if (WantedLength % _diskInfo.BytesPerSector > 0)
+//			WantedLength += _diskInfo.BytesPerSector - (WantedLength % _diskInfo.BytesPerSector);
+//
+//		/* Walk through the RunData and read the requested data from disk. */
+//		AtomicInteger Index = new AtomicInteger(); // UInt32
+//		long Lcn = 0; // Int64
+//		long Vcn = 0; // Int64
+//
+//		byte[] buffer = new byte[(int)WantedLength];
+//
+//		while (RunData[Index.get()] != 0)
+//		{
+//			/* Decode the RunData and calculate the next Lcn. */
+//			int RunLengthSize = (RunData[Index.get()] & 0x0F);
+//			int RunOffsetSize = ((RunData[Index.get()] & 0xF0) >> 4);
+//
+//			if (Index.incrementAndGet() >= RunDataLength)
+//				throw new IllegalArgumentException("Error: datarun is longer than buffer, the MFT may be corrupt.");
+//
+//			long RunLength = ProcessRunLength(RunData, offset + RunDataLength, RunLengthSize, Index);
+//
+//			long RunOffset = ProcessRunOffset(RunData, offset + RunDataLength, RunOffsetSize, Index);
+//
+//			// Ignore virtual extents.
+//			if (RunOffset == 0 || RunLength == 0)
+//				continue;
+//
+//			Lcn += RunOffset;
+//			Vcn += RunLength;
+//
+//			/* Determine how many and which bytes we want to read. If we don't need
+//			   any bytes from this extent then loop. */
+//			long ExtentVcn = (long)((Vcn - RunLength) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
+//			long ExtentLcn = (long)(Lcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
+//			long ExtentLength = (long)(RunLength * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
+//
+//			if (offset >= ExtentVcn + ExtentLength)
+//				continue;
+//
+//			if (offset > ExtentVcn)
+//			{
+//				ExtentLcn = ExtentLcn + offset - ExtentVcn;
+//				ExtentLength = ExtentLength - (offset - ExtentVcn);
+//				ExtentVcn = offset;
+//			}
+//
+//			if (offset + WantedLength <= ExtentVcn)
+//				continue;
+//
+//			if (offset + WantedLength < ExtentVcn + ExtentLength)
+//				ExtentLength = offset + WantedLength - ExtentVcn;
+//
+//			if (ExtentLength == 0)
+//				continue;
+//
+////			ReadFile(bufPtr + ExtentVcn - Offset, ExtentLength, ExtentLcn);
+//			ReadFile(buffer, (int)(ExtentVcn - offset), (int)ExtentLength, ExtentLcn);
+//		}
+//
+//		return buffer;
+//	}
 
 	/// Process each attributes and gather information when necessary
 	private void ProcessAttributes(AtomicReference<Node> node, int nodeIndex, byte[] aBuffer, int ptr, long BufLength, short instance, int depth, List<Stream> streams, boolean isMftNode)
@@ -417,7 +394,9 @@ public class NtfsReader
 		{
 			// exit the loop if end-marker.
 			if ((AttributeOffset + 4 <= bufEnd) && getInt(aBuffer, AttributeOffset) == -1)
+			{
 				break;
+			}
 
 			attribute = unmarshal(Attribute.class, aBuffer, AttributeOffset);
 
@@ -427,13 +406,17 @@ public class NtfsReader
 
 			//attributes list needs to be processed at the end
 			if (attribute.AttributeType == AttributeType.AttributeAttributeList.CODE)
+			{
 				continue;
+			}
 
 			/* If the Instance does not equal the AttributeNumber then ignore the attribute.
 			   This is used when an AttributeList is being processed and we only want a specific
 			   instance. */
 			if ((instance != (short)65535) && (instance != attribute.AttributeNumber))
+			{
 				continue;
+			}
 
 			if (attribute.Nonresident == 0)
 			{
@@ -474,6 +457,9 @@ public class NtfsReader
 					case AttributeData:
 						node.get().Size = residentAttribute.ValueLength;
 						break;
+					default:
+						System.out.println("Unsupported: " + AttributeType.decode(attribute.AttributeType));
+						break;
 				}
 			}
 			else
@@ -482,7 +468,9 @@ public class NtfsReader
 
 				//save the length (number of bytes) of the data.
 				if (attribute.AttributeType == AttributeType.AttributeData.CODE && node.get().Size == 0)
+				{
 					node.get().Size = nonResidentAttribute.DataSize;
+				}
 
 				if (streams != null)
 				{
@@ -502,11 +490,9 @@ public class NtfsReader
 					else if (stream.Size == 0)
 						stream.Size = nonResidentAttribute.DataSize;
 
-					//we need the fragment of the MFTNode so retrieve them this time
-					//even if fragments aren't normally read
+					//we need the fragment of the MFTNode so retrieve them this time even if fragments aren't normally read
 					if (isMftNode || (_retrieveMode & RetrieveMode.Fragments.CODE) == RetrieveMode.Fragments.CODE)
 						ProcessFragments(
-							node,
 							stream,
 							aBuffer,
 							AttributeOffset + nonResidentAttribute.RunArrayOffset,
@@ -523,16 +509,12 @@ public class NtfsReader
 
 	/// Process fragments for streams
 	private void ProcessFragments(
-		AtomicReference<Node> node,
 		Stream stream,
 		byte[] runData,
 		int offset,
 		int runDataLength,
 		long StartingVcn)
 	{
-		if (runData == null)
-			return;
-
 		/* Walk through the RunData and add the extents. */
 		AtomicInteger index = new AtomicInteger(offset); // uint
 		long lcn = 0; // Int64
@@ -543,15 +525,23 @@ public class NtfsReader
 		while (runData[index.get()] != 0)
 		{
 			/* Decode the RunData and calculate the next Lcn. */
-			runLengthSize = (runData[index.get()] & 0x0F);
-			runOffsetSize = ((runData[index.get()] & 0xF0) >> 4);
+			runLengthSize = runData[index.get()] & 0x0F;
+			runOffsetSize = (runData[index.get()] & 0xF0) >> 4;
 
-			if (index.incrementAndGet() >= offset + runDataLength)
-				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt. " + index.incrementAndGet()+" >= "+offset+" + "+runDataLength);
+			if (index.incrementAndGet() >= index.get() + runDataLength)
+				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt. " + index.incrementAndGet()+" >= "+index.get()+" + "+runDataLength);
 
-			long runLength = ProcessRunLength(runData, offset + runDataLength, runLengthSize, index);
+			System.out.println(index);
+			Debug.hexDump(runData, index.get(), runLengthSize+10);
 
-			long runOffset = ProcessRunOffset(runData, offset + runDataLength, runOffsetSize, index);
+			long runLength = ProcessRunLength(runData, runLengthSize, index);
+
+			System.out.println(index);
+			Debug.hexDump(runData, index.get(), runOffsetSize);
+
+			long runOffset = ProcessRunOffset(runData, runOffsetSize, index);
+
+			System.out.println(runOffset+" "+runLength);
 
 			lcn += runOffset;
 			vcn += runLength;
@@ -564,12 +554,11 @@ public class NtfsReader
 				stream.Clusters += runLength;
 
 			stream.getFragments().add(
-				new Fragment(
-					runOffset == 0 ? VIRTUALFRAGMENT : lcn,
-					vcn
-				)
+				new Fragment(runOffset == 0 ? VIRTUALFRAGMENT : lcn, vcn)
 			);
 		}
+
+		System.out.println(stream.getFragments());
 	}
 
 	/// Process an actual MFT record from the buffer
@@ -625,14 +614,14 @@ public class NtfsReader
 		for (Fragment fragment : bitmapStream.getFragments())
 		{
 			if (fragment.Lcn != VIRTUALFRAGMENT)
+			{
 				MaxMftBitmapBytes += (fragment.NextVcn - Vcn) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster;
+			}
 
 			Vcn = fragment.NextVcn;
 		}
 
 		byte[] bitmapData = new byte[MaxMftBitmapBytes];
-
-//		fixed (byte* bitmapDataPtr = bitmapData)
 
 		Vcn = 0;
 		long RealVcn = 0; // UInt64
@@ -691,6 +680,13 @@ public class NtfsReader
 		if (maxInode > (int)(dataStream.Size / _diskInfo.BytesPerMftRecord))
 			maxInode = (int)(dataStream.Size / _diskInfo.BytesPerMftRecord);
 
+//		int maxInode = (int)(dataStream.Size / _diskInfo.BytesPerMftRecord);
+
+		System.out.println("maxInode="+maxInode);
+		System.out.println("_bitmapData.length="+_bitmapData.length);
+		System.out.println("dataStream.Size="+dataStream.Size);
+		System.out.println("_diskInfo.BytesPerMftRecord="+_diskInfo.BytesPerMftRecord);
+
 		Node[] nodes = new Node[maxInode];
 		nodes[0] = mftNode.get();
 
@@ -712,12 +708,8 @@ public class NtfsReader
 		AtomicLong RealVcn = new AtomicLong(); // UInt64
 		AtomicLong Vcn = new AtomicLong(); // UInt64
 
-//		Stopwatch stopwatch = new Stopwatch();
-//		stopwatch.Start();
-
 		long totalBytesRead = 0;
 		int fragmentIndex = 0;
-		int fragmentCount = dataStream.getFragments().size();
 		for (int nodeIndex = 1; nodeIndex < maxInode; nodeIndex++)
 		{
 			// Ignore the Inode if the bitmap says it's not in use.
@@ -726,17 +718,10 @@ public class NtfsReader
 
 			if (nodeIndex >= BlockEnd.get())
 			{
-				if (!ReadNextChunk(
-						buffer,
-						bufferSize,
-						nodeIndex,
-						fragmentIndex,
-						dataStream,
-						BlockStart,
-						BlockEnd,
-						Vcn,
-						RealVcn))
+				if (!ReadNextChunk(buffer, bufferSize, nodeIndex, fragmentIndex, dataStream, BlockStart, BlockEnd, Vcn, RealVcn))
+				{
 					break;
+				}
 
 				totalBytesRead += (BlockEnd.get() - BlockStart.get()) * _diskInfo.BytesPerMftRecord;
 			}
@@ -769,16 +754,7 @@ public class NtfsReader
 				_streams[nodeIndex] = streams.toArray(new Stream[0]);
 		}
 
-//		stopwatch.Stop();
-
-//		Trace.WriteLine(
-//			string.Format(
-//				"{0:F3} MB of volume metadata has been read in {1:F3} s at {2:F3} MB/s",
-//				(float)totalBytesRead / (1024*1024),
-//				(float)stopwatch.Elapsed.TotalSeconds,
-//				((float)totalBytesRead / (1024*1024)) / stopwatch.Elapsed.TotalSeconds
-//			)
-//		);
+		System.out.printf("%f MB of volume metadata has been read", (float)totalBytesRead / (1024*1024));
 
 		return nodes;
 	}
@@ -823,66 +799,6 @@ public class NtfsReader
 		}
 
 		return fullPath.toString();
-	}
-
-
-////	[DllImport("kernel32", CharSet = CharSet.Auto, BestFitMapping = false)]
-////	private static extern bool GetVolumeNameForVolumeMountPoint(String volumeName, StringBuilder uniqueVolumeName, int uniqueNameBufferCapacity);
-////
-////	[DllImport("kernel32", CharSet = CharSet.Auto, BestFitMapping = false)]
-////	private static extern SafeFileHandle CreateFile(string lpFileName, FileAccess fileAccess, FileShare fileShare, IntPtr lpSecurityAttributes, FileMode fileMode, int dwFlagsAndAttributes, IntPtr hTemplateFile);
-////
-////	[DllImport("kernel32", CharSet = CharSet.Auto)]
-////	private static extern bool ReadFile(SafeFileHandle hFile, IntPtr lpBuffer, uint nNumberOfBytesToRead, out uint lpNumberOfBytesRead, ref NativeOverlapped lpOverlapped);
-//
-//	private enum FileMode
-//	{
-//		Append(6),
-//		Create(2),
-//		CreateNew(1),
-//		Open(3),
-//		OpenOrCreate(4),
-//		Truncate(5);
-//
-//		private int mFlag;
-//
-//
-//		private FileMode(int aFlag)
-//		{
-//			mFlag = aFlag;
-//		}
-//	}
-
-	private enum FileShare
-	{
-		None(0),
-		Read(1),
-		Write(2),
-		Delete(4),
-		All(1 + 2 + 4);
-
-		private int mFlag;
-
-
-		private FileShare(int aFlag)
-		{
-			mFlag = aFlag;
-		}
-	}
-
-	private enum FileAccess
-	{
-		Read(1),
-		ReadWrite(3),
-		Write(2);
-
-		private int mFlag;
-
-
-		private FileAccess(int aFlag)
-		{
-			mFlag = aFlag;
-		}
 	}
 
 

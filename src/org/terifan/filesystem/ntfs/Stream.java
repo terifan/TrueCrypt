@@ -26,4 +26,11 @@ class Stream
 
 		return _fragments;
 	}
+
+
+	@Override
+	public String toString()
+	{
+		return "Stream{" + "Clusters=" + Clusters + ", Size=" + Size + ", Type=" + Type + ", NameIndex=" + NameIndex + ", _fragments=" + _fragments.size() + '}';
+	}
 }

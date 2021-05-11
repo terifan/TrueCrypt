@@ -11,4 +11,11 @@ class Fragment
 		Lcn = lcn;
 		NextVcn = nextVcn;
 	}
+
+
+	@Override
+	public String toString()
+	{
+		return "Fragment{" + "Lcn=" + Lcn + ", NextVcn=" + NextVcn + '}';
+	}
 }

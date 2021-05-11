@@ -3,7 +3,7 @@ package org.terifan.filesystem.ntfs;
 
 enum RecordType
 {
-	File(0x454c4946); //  //'FILE' in ASCII//  //'FILE' in ASCII
+	File(0x454c4946); // 'FILE' in ASCII
 
 	int CODE;
 

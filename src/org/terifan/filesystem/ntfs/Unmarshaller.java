@@ -167,9 +167,18 @@ class Unmarshaller
 					{
 						for (Constructor c : field.getType().getConstructors())
 						{
-							if (c.getParameterCount() == 1)
+							if (c.getAnnotation(ValueTypeConstructor.class) != null)
 							{
-								value = field.getType().getConstructor(c.getParameterTypes()[0]).newInstance(read(c.getParameterTypes()[0], aBuffer, aOffset));
+								Class[] parameterTypes = c.getParameterTypes();
+
+								Object[] params = new Object[parameterTypes.length];
+
+								for (int j = 0; j < parameterTypes.length; j++)
+								{
+									params[j] = read(parameterTypes[j], aBuffer, aOffset);
+								}
+
+								value = c.newInstance(params);
 								break;
 							}
 						}
@@ -286,6 +295,12 @@ class Unmarshaller
 
 	@Target(value = {ElementType.TYPE}) @Retention(value = RetentionPolicy.RUNTIME)
 	public @interface ValueType
+	{
+	}
+
+
+	@Target(value = {ElementType.CONSTRUCTOR}) @Retention(value = RetentionPolicy.RUNTIME)
+	public @interface ValueTypeConstructor
 	{
 	}
 

@@ -14,6 +14,7 @@ class DateTime
 	}
 
 
+	@Unmarshaller.ValueTypeConstructor
 	public DateTime(long aTime)
 	{
 		time = aTime;
