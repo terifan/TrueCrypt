@@ -21,7 +21,10 @@ public class NtfsReader
 	private long VIRTUALFRAGMENT = -1L; // UInt64
 	private int ROOTDIRECTORY = 5; // UInt32
 
-	private byte[] BitmapMasks = new byte[] { 1, 2, 4, 8, 16, 32, 64, (byte)128 };
+	private byte[] BitmapMasks = new byte[]
+	{
+		1, 2, 4, 8, 16, 32, 64, (byte)128
+	};
 
 //	SafeFileHandle _volumeHandle;
 	DiskInfoWrapper _diskInfo;
@@ -38,13 +41,16 @@ public class NtfsReader
 	//this will be deallocated once the MFT reading is finished
 	HashMap<String, Integer> _nameIndex = new HashMap<String, Integer>(); // 128 * 1024, StringComparer.Ordinal
 
+
 	/// Allocate or retrieve an existing index for the particular string.
 	/// In order to mimize memory usage, we reuse string as much as possible.
-	private int GetNameIndex(String name)
+	private int getNameIndex(String name)
 	{
 		Integer existingIndex = _nameIndex.get(name);
 		if (existingIndex != null)
+		{
 			return existingIndex;
+		}
 
 		_names.add(name);
 		_nameIndex.put(name, _names.size() - 1);
@@ -52,40 +58,49 @@ public class NtfsReader
 		return _names.size() - 1;
 	}
 
+
 	/// Get the string from our stringtable from the given index.
-	String GetNameFromIndex(int nameIndex)
+	String getNameFromIndex(int aNameIndex)
 	{
-		return nameIndex == 0 ? null : _names.get(nameIndex);
+		return aNameIndex == 0 ? null : _names.get(aNameIndex);
 	}
 
-	private Stream SearchStream(List<Stream> streams, AttributeType streamType)
+
+	private Stream searchStream(List<Stream> aStreams, AttributeType aStreamType)
 	{
-		//since the number of stream is usually small, we can afford O(n)
-		for (Stream stream : streams)
-			if (stream.Type == streamType)
+		for (Stream stream : aStreams)
+		{
+			if (stream.mType == aStreamType)
+			{
 				return stream;
+			}
+		}
 
 		return null;
 	}
 
-	private Stream SearchStream(List<Stream> streams, AttributeType streamType, int streamNameIndex)
+
+	private Stream searchStream(List<Stream> aStreams, AttributeType aStreamType, int aStreamNameIndex)
 	{
-		//since the number of stream is usually small, we can afford O(n)
-		for (Stream stream : streams)
-			if (stream.Type == streamType &&
-				stream.NameIndex == streamNameIndex)
+		for (Stream stream : aStreams)
+		{
+			if (stream.mType == aStreamType && stream.NameIndex == aStreamNameIndex)
+			{
 				return stream;
+			}
+		}
 
 		return null;
 	}
 
-	private void ReadFile(byte[] buffer, int offset, int len, long absolutePosition)
+
+	private void readFile(byte[] aBuffer, int aOffset, int aLength, long aAbsolutePosition)
 	{
 //		System.out.println("------ " + absolutePosition / 512);
 
 		try
 		{
-			_driveInfo.read(absolutePosition / 512, buffer, offset, len);
+			_driveInfo.read(aAbsolutePosition / 512, aBuffer, aOffset, aLength);
 		}
 		catch (Exception e)
 		{
@@ -102,23 +117,16 @@ public class NtfsReader
 //			throw new IllegalStateException("Unable to read volume information");
 	}
 
+
 	/// Read the next contiguous block of information on disk
-	private boolean ReadNextChunk(
-		byte[] buffer,
-		int bufferSize, // UInt32
-		int nodeIndex, // UInt32
-		int fragmentIndex,
-		Stream dataStream,
-		AtomicLong BlockStart, // ref UInt64
-		AtomicLong BlockEnd, // ref UInt64
-		AtomicLong Vcn, // ref UInt64
-		AtomicLong RealVcn // ref UInt64
-		)
+	private boolean readNextChunk(byte[] buffer, int bufferSize, int nodeIndex, int fragmentIndex, Stream dataStream, AtomicLong BlockStart, AtomicLong BlockEnd, AtomicLong Vcn, AtomicLong RealVcn)
 	{
 		BlockStart.set(nodeIndex);
 		BlockEnd.set(BlockStart.get() + bufferSize / _diskInfo.BytesPerMftRecord);
 		if (BlockEnd.get() > dataStream.Size * 8)
+		{
 			BlockEnd.set(dataStream.Size * 8);
+		}
 
 		long u1 = 0;
 
@@ -131,49 +139,60 @@ public class NtfsReader
 			u1 = (RealVcn.get() + fragment.NextVcn - Vcn.get()) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster / _diskInfo.BytesPerMftRecord;
 
 			if (u1 > nodeIndex)
+			{
 				break;
+			}
 
 			do
 			{
 				if (fragment.Lcn != VIRTUALFRAGMENT)
+				{
 					RealVcn.set(RealVcn.get() + fragment.NextVcn - Vcn.get());
+				}
 
 				Vcn.set(fragment.NextVcn);
 
 				if (++fragmentIndex >= fragmentCount)
+				{
 					break;
+				}
 
-			} while (fragment.Lcn == VIRTUALFRAGMENT);
+			}
+			while (fragment.Lcn == VIRTUALFRAGMENT);
 		}
 
 		if (fragmentIndex >= fragmentCount)
+		{
 			return false;
+		}
 
 		if (BlockEnd.get() >= u1)
+		{
 			BlockEnd.set(u1);
+		}
 
 		long position = (dataStream.getFragments().get(fragmentIndex).Lcn - RealVcn.get()) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster + BlockStart.get() * _diskInfo.BytesPerMftRecord;
 
 		long len = (BlockEnd.get() - BlockStart.get()) * _diskInfo.BytesPerMftRecord;
 
-		ReadFile(buffer, 0, (int)len, position);
+		readFile(buffer, 0, (int)len, position);
 
 		return true;
 	}
 
-	/// Gather basic disk information we need to interpret data
-	private void InitializeDiskInfo()
+
+	private void initializeDiskInfo()
 	{
 		byte[] volumeData = new byte[512];
 
-		ReadFile(volumeData, 0, volumeData.length, 0);
-
-		Debug.hexDump(volumeData);
+		readFile(volumeData, 0, volumeData.length, 0);
 
 		BootSector bootSector = unmarshal(BootSector.class, volumeData, 0);
 
 		if (bootSector.Signature != 0x202020205346544EL)
+		{
 			throw new IllegalStateException("This is not an NTFS disk.");
+		}
 
 		DiskInfoWrapper diskInfo = new DiskInfoWrapper();
 		diskInfo.BytesPerSector = bootSector.BytesPerSector;
@@ -185,14 +204,20 @@ public class NtfsReader
 		diskInfo.ClustersPerIndexRecord = bootSector.ClustersPerIndexRecord;
 
 		if (bootSector.ClustersPerMftRecord >= 128)
+		{
 			diskInfo.BytesPerMftRecord = (1L << (byte)(256 - (byte)bootSector.ClustersPerMftRecord));
+		}
 		else
+		{
 			diskInfo.BytesPerMftRecord = diskInfo.ClustersPerMftRecord * diskInfo.BytesPerSector * diskInfo.SectorsPerCluster;
+		}
 
 		diskInfo.BytesPerCluster = diskInfo.BytesPerSector * diskInfo.SectorsPerCluster;
 
 		if (diskInfo.SectorsPerCluster > 0)
+		{
 			diskInfo.TotalClusters = diskInfo.TotalSectors / diskInfo.SectorsPerCluster;
+		}
 
 		_diskInfo = diskInfo;
 	}
@@ -227,49 +252,46 @@ public class NtfsReader
 //		}
 //	}
 
-	/// Used to check/adjust data before we begin to interpret it
-	private void FixupRawMftdata(byte[] buffer, int offset, int len) // UInt64
+	private void fixupRawMftdata(byte[] aBuffer, int aOffset, int aLength)
 	{
-		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, buffer, offset);
+		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, aBuffer, aOffset);
 
 		if (ntfsFileRecordHeader.RecordHeader.Type != RecordType.File.CODE)
+		{
 			return;
+		}
 
-//		short[] wordBuffer = new short[buffer.length]; //(UInt16*)buffer;
-
-		int offsetPtr = offset + (0xffff & ntfsFileRecordHeader.RecordHeader.UsaOffset);
+		int offsetPtr = aOffset + (0xffff & ntfsFileRecordHeader.RecordHeader.UsaOffset);
 		int increment = (int)_diskInfo.BytesPerSector / 2;
 
 		int Index = increment - 1;
 
 		for (int i = 1; i < ntfsFileRecordHeader.RecordHeader.UsaCount; i++)
 		{
-			/* Check if we are inside the buffer. */
-			if (Index * 2 >= len)
+			if (Index * 2 >= aLength)
+			{
 				throw new IllegalArgumentException("USA data indicates that data is missing, the MFT may be corrupt.");
-
-			//System.out.println(i+" "+Index+" "+getShort(buffer, offset + 2 * Index)+" != "+getShort(buffer, offsetPtr));
+			}
 
 			// Check if the last 2 bytes of the sector contain the Update Sequence Number.
-			if (getShort(buffer, offset + 2 * Index) != getShort(buffer, offsetPtr))
+			if (getShort(aBuffer, aOffset + 2 * Index) != getShort(aBuffer, offsetPtr))
+			{
 				throw new IllegalArgumentException("USA fixup word is not equal to the Update Sequence Number, the MFT may be corrupt.");
+			}
 
-			/* Replace the last 2 bytes in the sector with the value from the Usa array. */
-			setShort(buffer, offset + 2 * Index, getShort(buffer, offsetPtr + 2 * i));
+			// Replace the last 2 bytes in the sector with the value from the Usa array.
+			setShort(aBuffer, aOffset + 2 * Index, getShort(aBuffer, offsetPtr + 2 * i));
 			Index = Index + increment;
 		}
 	}
 
 
-	private static long ProcessRunLength(byte[] runData, int runLengthSize, AtomicInteger index) // Int64, Int32, Int32, ref Int32
+	private static long processRunLength(byte[] aRunData, int aRunLengthSize, AtomicInteger aOffset)
 	{
 		long runLength = 0;
-//		long end = index.get() + runLengthSize;
-		for (int i = 0; i < runLengthSize; i++)
+		for (int i = 0; i < aRunLengthSize; i++)
 		{
-			System.out.println("**"+(0xff & runData[index.get()]));
-
-			runLength += (long)(0xff & runData[index.getAndIncrement()]) << (8 * i);
+			runLength += (long)(0xff & aRunData[aOffset.getAndIncrement()]) << (8 * i);
 
 //			if (index.incrementAndGet() >= end)
 //				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
@@ -277,22 +299,20 @@ public class NtfsReader
 		return runLength;
 	}
 
-	private static long ProcessRunOffset(byte[] runData, int runOffsetSize, AtomicInteger index) // UInt64
+
+	private static long processRunOffset(byte[] aRunData, int aRunOffsetSize, AtomicInteger aOffset)
 	{
 		byte[] runOffsetBytes = new byte[8];
-//		long end = index.get() + runOffsetSize;
 		int i = 0;
-		for (; i < runOffsetSize; i++)
+		for (; i < aRunOffsetSize; i++)
 		{
-			System.out.println("**"+(0xff & runData[index.get()]));
-
-			runOffsetBytes[i] = runData[index.getAndIncrement()];
+			runOffsetBytes[i] = aRunData[aOffset.getAndIncrement()];
 
 //			if (index.incrementAndGet() >= end)
 //				throw new IllegalStateException("Datarun is longer than buffer, the MFT may be corrupt.");
 		}
 
-		if ((0xff & runData[index.get() - 1]) >= 0x80)
+		if ((0xff & aRunData[aOffset.get() - 1]) >= 0x80)
 		{
 			while (i < 8)
 			{
@@ -303,94 +323,12 @@ public class NtfsReader
 		return Unmarshaller.getLong(runOffsetBytes, 0);
 	}
 
-	/// Read the data that is specified in a RunData list from disk into memory,
-	/// skipping the first Offset bytes.
-//	private byte[] ProcessNonResidentData(
-//		byte[] RunData,
-//		int RunDataLength, // UInt32
-//		int offset, // UInt64         /* Bytes to skip from begin of data. */
-//		long WantedLength // UInt64    /* Number of bytes to read. */
-//		)
-//	{
-//		/* Sanity check. */
-//		if (RunData == null || RunDataLength == 0)
-//			throw new IllegalArgumentException("nothing to read");
-//
-//		if (WantedLength >= Integer.MAX_VALUE)
-//			throw new IllegalArgumentException("too many bytes to read");
-//
-//		/* We have to round up the WantedLength to the nearest sector. For some
-//		   reason or other Microsoft has decided that raw reading from disk can
-//		   only be done by whole sector, even though ReadFile() accepts it's
-//		   parameters in bytes. */
-//		if (WantedLength % _diskInfo.BytesPerSector > 0)
-//			WantedLength += _diskInfo.BytesPerSector - (WantedLength % _diskInfo.BytesPerSector);
-//
-//		/* Walk through the RunData and read the requested data from disk. */
-//		AtomicInteger Index = new AtomicInteger(); // UInt32
-//		long Lcn = 0; // Int64
-//		long Vcn = 0; // Int64
-//
-//		byte[] buffer = new byte[(int)WantedLength];
-//
-//		while (RunData[Index.get()] != 0)
-//		{
-//			/* Decode the RunData and calculate the next Lcn. */
-//			int RunLengthSize = (RunData[Index.get()] & 0x0F);
-//			int RunOffsetSize = ((RunData[Index.get()] & 0xF0) >> 4);
-//
-//			if (Index.incrementAndGet() >= RunDataLength)
-//				throw new IllegalArgumentException("Error: datarun is longer than buffer, the MFT may be corrupt.");
-//
-//			long RunLength = ProcessRunLength(RunData, offset + RunDataLength, RunLengthSize, Index);
-//
-//			long RunOffset = ProcessRunOffset(RunData, offset + RunDataLength, RunOffsetSize, Index);
-//
-//			// Ignore virtual extents.
-//			if (RunOffset == 0 || RunLength == 0)
-//				continue;
-//
-//			Lcn += RunOffset;
-//			Vcn += RunLength;
-//
-//			/* Determine how many and which bytes we want to read. If we don't need
-//			   any bytes from this extent then loop. */
-//			long ExtentVcn = (long)((Vcn - RunLength) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-//			long ExtentLcn = (long)(Lcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-//			long ExtentLength = (long)(RunLength * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
-//
-//			if (offset >= ExtentVcn + ExtentLength)
-//				continue;
-//
-//			if (offset > ExtentVcn)
-//			{
-//				ExtentLcn = ExtentLcn + offset - ExtentVcn;
-//				ExtentLength = ExtentLength - (offset - ExtentVcn);
-//				ExtentVcn = offset;
-//			}
-//
-//			if (offset + WantedLength <= ExtentVcn)
-//				continue;
-//
-//			if (offset + WantedLength < ExtentVcn + ExtentLength)
-//				ExtentLength = offset + WantedLength - ExtentVcn;
-//
-//			if (ExtentLength == 0)
-//				continue;
-//
-////			ReadFile(bufPtr + ExtentVcn - Offset, ExtentLength, ExtentLcn);
-//			ReadFile(buffer, (int)(ExtentVcn - offset), (int)ExtentLength, ExtentLcn);
-//		}
-//
-//		return buffer;
-//	}
 
-	/// Process each attributes and gather information when necessary
-	private void ProcessAttributes(AtomicReference<Node> node, int nodeIndex, byte[] aBuffer, int ptr, long BufLength, short instance, int depth, List<Stream> streams, boolean isMftNode)
+	private void processAttributes(AtomicReference<Node> aNode, int aNodeIndex, byte[] aBuffer, int aPointer, long aBufferLength, short aInstance, int aDepth, List<Stream> aStreams, boolean aIsMftNode)
 	{
 		Attribute attribute = null;
 
-		for (int AttributeOffset = ptr, bufEnd = ptr + (int)BufLength; AttributeOffset < bufEnd; AttributeOffset += attribute.Length)
+		for (int AttributeOffset = aPointer, bufEnd = aPointer + (int)aBufferLength; AttributeOffset < bufEnd; AttributeOffset += attribute.Length)
 		{
 			// exit the loop if end-marker.
 			if ((AttributeOffset + 4 <= bufEnd) && getInt(aBuffer, AttributeOffset) == -1)
@@ -402,7 +340,9 @@ public class NtfsReader
 
 			//make sure we did read the data correctly
 			if ((AttributeOffset + 4 > bufEnd) || attribute.Length < 3 || (AttributeOffset + attribute.Length > bufEnd))
-				throw new IllegalStateException("Error: attribute in Inode %I64u is bigger than the data, the MFT may be corrupt." + AttributeOffset+" "+attribute.Length+" "+BufLength+" "+attribute.Length);
+			{
+				throw new IllegalStateException("Error: attribute in Inode %I64u is bigger than the data, the MFT may be corrupt." + AttributeOffset + " " + attribute.Length + " " + aBufferLength + " " + attribute.Length);
+			}
 
 			//attributes list needs to be processed at the end
 			if (attribute.AttributeType == AttributeType.AttributeAttributeList.CODE)
@@ -413,7 +353,7 @@ public class NtfsReader
 			/* If the Instance does not equal the AttributeNumber then ignore the attribute.
 			   This is used when an AttributeList is being processed and we only want a specific
 			   instance. */
-			if ((instance != (short)65535) && (instance != attribute.AttributeNumber))
+			if ((aInstance != (short)65535) && (aInstance != attribute.AttributeNumber))
 			{
 				continue;
 			}
@@ -428,34 +368,40 @@ public class NtfsReader
 						AttributeFileName attributeFileName = unmarshal(AttributeFileName.class, aBuffer, AttributeOffset + residentAttribute.ValueOffset);
 
 						if (attributeFileName.ParentDirectory.InodeNumberHighPart > 0)
+						{
 							throw new IllegalStateException("48 bits inode are not supported to reduce memory footprint.");
+						}
 
 //						node.get().ParentNodeIndex = ((long)attributeFileName.ParentDirectory.InodeNumberHighPart << 32) + attributeFileName.ParentDirectory.InodeNumberLowPart;
-						node.get().ParentNodeIndex = attributeFileName.ParentDirectory.InodeNumberLowPart;
+						aNode.get().ParentNodeIndex = attributeFileName.ParentDirectory.InodeNumberLowPart;
 
-						if (attributeFileName.NameType == 1 || node.get().NameIndex == 0)
+						if (attributeFileName.NameType == 1 || aNode.get().NameIndex == 0)
 //							node.get().NameIndex = GetNameIndex(new String(attributeFileName.Name, 0, attributeFileName.NameLength));
-							node.get().NameIndex = GetNameIndex(attributeFileName.Name);
+						{
+							aNode.get().NameIndex = getNameIndex(attributeFileName.Name);
+						}
 
 						break;
 
 					case AttributeStandardInformation:
 						AttributeStandardInformation attributeStandardInformation = unmarshal(AttributeStandardInformation.class, aBuffer, AttributeOffset + residentAttribute.ValueOffset);
 
-						node.get().Attributes |= attributeStandardInformation.FileAttributes;
+						aNode.get().Attributes |= attributeStandardInformation.FileAttributes;
 
 						if ((_retrieveMode & RetrieveMode.StandardInformations.CODE) == RetrieveMode.StandardInformations.CODE)
-							_standardInformations[nodeIndex] =
-								new StandardInformation(
+						{
+							_standardInformations[aNodeIndex]
+								= new StandardInformation(
 									attributeStandardInformation.CreationTime,
 									attributeStandardInformation.FileChangeTime,
 									attributeStandardInformation.LastAccessTime
 								);
+						}
 
 						break;
 
 					case AttributeData:
-						node.get().Size = residentAttribute.ValueLength;
+						aNode.get().Size = residentAttribute.ValueLength;
 						break;
 					default:
 						System.out.println("Unsupported: " + AttributeType.decode(attribute.AttributeType));
@@ -467,53 +413,56 @@ public class NtfsReader
 				NonResidentAttribute nonResidentAttribute = unmarshal(NonResidentAttribute.class, aBuffer, AttributeOffset);
 
 				//save the length (number of bytes) of the data.
-				if (attribute.AttributeType == AttributeType.AttributeData.CODE && node.get().Size == 0)
+				if (attribute.AttributeType == AttributeType.AttributeData.CODE && aNode.get().Size == 0)
 				{
-					node.get().Size = nonResidentAttribute.DataSize;
+					aNode.get().Size = nonResidentAttribute.DataSize;
 				}
 
-				if (streams != null)
+				if (aStreams != null)
 				{
 					//extract the stream name
 					int streamNameIndex = 0;
 					if (attribute.NameLength > 0)
-						streamNameIndex = GetNameIndex(new String(aBuffer, (AttributeOffset + attribute.NameOffset), (int)attribute.NameLength));
+					{
+						streamNameIndex = getNameIndex(new String(aBuffer, (AttributeOffset + attribute.NameOffset), (int)attribute.NameLength));
+					}
 
 					//find or create the stream
-					Stream stream =	SearchStream(streams, AttributeType.decode(attribute.AttributeType), streamNameIndex);
+					Stream stream = searchStream(aStreams, AttributeType.decode(attribute.AttributeType), streamNameIndex);
 
 					if (stream == null)
 					{
 						stream = new Stream(streamNameIndex, AttributeType.decode(attribute.AttributeType), nonResidentAttribute.DataSize);
-						streams.add(stream);
+						aStreams.add(stream);
 					}
 					else if (stream.Size == 0)
+					{
 						stream.Size = nonResidentAttribute.DataSize;
+					}
 
 					//we need the fragment of the MFTNode so retrieve them this time even if fragments aren't normally read
-					if (isMftNode || (_retrieveMode & RetrieveMode.Fragments.CODE) == RetrieveMode.Fragments.CODE)
-						ProcessFragments(
+					if (aIsMftNode || (_retrieveMode & RetrieveMode.Fragments.CODE) == RetrieveMode.Fragments.CODE)
+					{
+						processFragments(
 							stream,
 							aBuffer,
 							AttributeOffset + nonResidentAttribute.RunArrayOffset,
 							attribute.Length - nonResidentAttribute.RunArrayOffset,
 							nonResidentAttribute.StartingVcn
 						);
+					}
 				}
 			}
 		}
 
-		if (streams != null && streams.size() > 0)
-			node.get().Size = streams.get(0).Size;
+		if (aStreams != null && aStreams.size() > 0)
+		{
+			aNode.get().Size = aStreams.get(0).Size;
+		}
 	}
 
-	/// Process fragments for streams
-	private void ProcessFragments(
-		Stream stream,
-		byte[] runData,
-		int offset,
-		int runDataLength,
-		long StartingVcn)
+
+	private void processFragments(Stream stream, byte[] runData, int offset, int runDataLength, long StartingVcn)
 	{
 		/* Walk through the RunData and add the extents. */
 		AtomicInteger index = new AtomicInteger(offset); // uint
@@ -529,19 +478,13 @@ public class NtfsReader
 			runOffsetSize = (runData[index.get()] & 0xF0) >> 4;
 
 			if (index.incrementAndGet() >= index.get() + runDataLength)
-				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt. " + index.incrementAndGet()+" >= "+index.get()+" + "+runDataLength);
+			{
+				throw new IllegalStateException("Error: datarun is longer than buffer, the MFT may be corrupt. " + index.incrementAndGet() + " >= " + index.get() + " + " + runDataLength);
+			}
 
-			System.out.println(index);
-			Debug.hexDump(runData, index.get(), runLengthSize+10);
+			long runLength = processRunLength(runData, runLengthSize, index);
 
-			long runLength = ProcessRunLength(runData, runLengthSize, index);
-
-			System.out.println(index);
-			Debug.hexDump(runData, index.get(), runOffsetSize);
-
-			long runOffset = ProcessRunOffset(runData, runOffsetSize, index);
-
-			System.out.println(runOffset+" "+runLength);
+			long runOffset = processRunOffset(runData, runOffsetSize, index);
 
 			lcn += runOffset;
 			vcn += runLength;
@@ -551,65 +494,77 @@ public class NtfsReader
 			   occupy clusters on disk, but are information used by compressed
 			   and sparse files. */
 			if (runOffset != 0)
+			{
 				stream.Clusters += runLength;
+			}
 
 			stream.getFragments().add(
 				new Fragment(runOffset == 0 ? VIRTUALFRAGMENT : lcn, vcn)
 			);
 		}
-
-		System.out.println(stream.getFragments());
 	}
 
+
 	/// Process an actual MFT record from the buffer
-//	private boolean ProcessMftRecord(byte* buffer, UInt64 length, UInt32 nodeIndex, out Node node, List<Stream> streams, bool isMftNode)
-	private boolean ProcessMftRecord(byte[] aBuffer, int offset, long length, int nodeIndex, AtomicReference<Node> node, List<Stream> streams, boolean isMftNode)
+	private boolean processMftRecord(byte[] aBuffer, int aOffset, long aLength, int aNodeIndex, AtomicReference<Node> aNode, List<Stream> aStreams, boolean aIsMftNode)
 	{
-		node.set(new Node());
+		aNode.set(new Node());
 
-		Debug.hexDump(aBuffer, offset, (int)length);
-
-		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, aBuffer, offset);
+		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, aBuffer, aOffset);
 
 		if (ntfsFileRecordHeader.RecordHeader.Type != RecordType.File.CODE)
+		{
 			return false;
+		}
 
 		//the inode is not in use
 		if ((ntfsFileRecordHeader.Flags & 1) != 1)
+		{
 			return false;
+		}
 
 		long baseInode = (ntfsFileRecordHeader.BaseFileRecord.InodeNumberHighPart << 32) + ntfsFileRecordHeader.BaseFileRecord.InodeNumberLowPart;
 
 		//This is an inode extension used in an AttributeAttributeList of another inode, don't parse it
 		if (baseInode != 0)
+		{
 			return false;
+		}
 
-		if (ntfsFileRecordHeader.AttributeOffset >= length)
+		if (ntfsFileRecordHeader.AttributeOffset >= aLength)
+		{
 			throw new IllegalStateException("Error: attributes in Inode %I64u are outside the FILE record, the MFT may be corrupt.");
+		}
 
-		if (ntfsFileRecordHeader.BytesInUse > length)
+		if (ntfsFileRecordHeader.BytesInUse > aLength)
+		{
 			throw new IllegalStateException("Error: in Inode %I64u the record is bigger than the size of the buffer, the MFT may be corrupt.");
+		}
 
 		//make the file appear in the rootdirectory by default
-		node.get().ParentNodeIndex = ROOTDIRECTORY;
+		aNode.get().ParentNodeIndex = ROOTDIRECTORY;
 
 		if ((ntfsFileRecordHeader.Flags & 2) == 2)
-			node.get().Attributes |= Attributes.Directory.CODE;
+		{
+			aNode.get().Attributes |= Attributes.Directory.CODE;
+		}
 
-		ProcessAttributes(node, nodeIndex, aBuffer, (0xffff & ntfsFileRecordHeader.AttributeOffset), length - (0xffff & ntfsFileRecordHeader.AttributeOffset), (short)65535, 0, streams, isMftNode);
+		processAttributes(aNode, aNodeIndex, aBuffer, (0xffff & ntfsFileRecordHeader.AttributeOffset), aLength - (0xffff & ntfsFileRecordHeader.AttributeOffset), (short)65535, 0, aStreams, aIsMftNode);
 
 		return true;
 	}
 
-	/// Process the bitmap data that contains information on inode usage.
-	private byte[] ProcessBitmapData(List<Stream> streams)
-	{
-		long Vcn = 0; // UInt64
-		int MaxMftBitmapBytes = 0; // UInt64
 
-		Stream bitmapStream = SearchStream(streams, AttributeType.AttributeBitmap);
+	private byte[] processBitmapData(List<Stream> aStreams)
+	{
+		long Vcn = 0;
+		int MaxMftBitmapBytes = 0;
+
+		Stream bitmapStream = searchStream(aStreams, AttributeType.AttributeBitmap);
 		if (bitmapStream == null)
+		{
 			throw new IllegalArgumentException("No Bitmap Data");
+		}
 
 		for (Fragment fragment : bitmapStream.getFragments())
 		{
@@ -630,12 +585,12 @@ public class NtfsReader
 		{
 			if (fragment.Lcn != VIRTUALFRAGMENT)
 			{
-				ReadFile(
+				readFile(
 					bitmapData,
 					(int)(RealVcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster),
 					(int)((fragment.NextVcn - Vcn) * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster),
 					fragment.Lcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster
-					);
+				);
 
 				RealVcn = RealVcn + fragment.NextVcn - Vcn;
 			}
@@ -646,46 +601,42 @@ public class NtfsReader
 		return bitmapData;
 	}
 
-	/// Begin the process of interpreting MFT data
-	private Node[] ProcessMft()
+
+	private Node[] processMft()
 	{
 		int bufferSize = 256 * 1024;
 
 		byte[] buffer = new byte[bufferSize];
 
 		// Read the $MFT record from disk into memory, which is always the first record in the MFT.
-		ReadFile(buffer, 0, (int)_diskInfo.BytesPerMftRecord, _diskInfo.MftStartLcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
+		readFile(buffer, 0, (int)_diskInfo.BytesPerMftRecord, _diskInfo.MftStartLcn * _diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster);
 
 		// Fixup the raw data from disk. This will also test if it's a valid $MFT record.
-		FixupRawMftdata(buffer, 0, (int)_diskInfo.BytesPerMftRecord);
+		fixupRawMftdata(buffer, 0, (int)_diskInfo.BytesPerMftRecord);
 
 		List<Stream> mftStreams = new ArrayList<Stream>();
 
 		if ((_retrieveMode & RetrieveMode.StandardInformations.CODE) == RetrieveMode.StandardInformations.CODE)
+		{
 			_standardInformations = new StandardInformation[1]; //allocate some space for $MFT record
-
+		}
 		AtomicReference<Node> mftNode = new AtomicReference<>();
 
-		if (!ProcessMftRecord(buffer, 0, _diskInfo.BytesPerMftRecord, 0, mftNode, mftStreams, true))
+		if (!processMftRecord(buffer, 0, _diskInfo.BytesPerMftRecord, 0, mftNode, mftStreams, true))
+		{
 			throw new IllegalArgumentException("Can't interpret Mft Record");
+		}
 
 		// the bitmap data contains all used inodes on the disk
-		_bitmapData = ProcessBitmapData(mftStreams);
+		_bitmapData = processBitmapData(mftStreams);
 
-//		OnBitmapDataAvailable();
-
-		Stream dataStream = SearchStream(mftStreams, AttributeType.AttributeData);
+		Stream dataStream = searchStream(mftStreams, AttributeType.AttributeData);
 
 		int maxInode = (int)_bitmapData.length * 8;
 		if (maxInode > (int)(dataStream.Size / _diskInfo.BytesPerMftRecord))
+		{
 			maxInode = (int)(dataStream.Size / _diskInfo.BytesPerMftRecord);
-
-//		int maxInode = (int)(dataStream.Size / _diskInfo.BytesPerMftRecord);
-
-		System.out.println("maxInode="+maxInode);
-		System.out.println("_bitmapData.length="+_bitmapData.length);
-		System.out.println("dataStream.Size="+dataStream.Size);
-		System.out.println("_diskInfo.BytesPerMftRecord="+_diskInfo.BytesPerMftRecord);
+		}
 
 		Node[] nodes = new Node[maxInode];
 		nodes[0] = mftNode.get();
@@ -698,10 +649,9 @@ public class NtfsReader
 		}
 
 		if ((_retrieveMode & RetrieveMode.Streams.CODE) == RetrieveMode.Streams.CODE)
+		{
 			_streams = new Stream[maxInode][];
-
-		/* Read and process all the records in the MFT. The records are read into a
-		   buffer and then given one by one to the InterpretMftRecord() subroutine. */
+		}
 
 		AtomicLong BlockStart = new AtomicLong(); // UInt64
 		AtomicLong BlockEnd = new AtomicLong(); // UInt64
@@ -714,11 +664,13 @@ public class NtfsReader
 		{
 			// Ignore the Inode if the bitmap says it's not in use.
 			if ((_bitmapData[nodeIndex >> 3] & BitmapMasks[nodeIndex % 8]) == 0)
+			{
 				continue;
+			}
 
 			if (nodeIndex >= BlockEnd.get())
 			{
-				if (!ReadNextChunk(buffer, bufferSize, nodeIndex, fragmentIndex, dataStream, BlockStart, BlockEnd, Vcn, RealVcn))
+				if (!readNextChunk(buffer, bufferSize, nodeIndex, fragmentIndex, dataStream, BlockStart, BlockEnd, Vcn, RealVcn))
 				{
 					break;
 				}
@@ -726,45 +678,50 @@ public class NtfsReader
 				totalBytesRead += (BlockEnd.get() - BlockStart.get()) * _diskInfo.BytesPerMftRecord;
 			}
 
-			FixupRawMftdata(
-					buffer,
-					(int)((nodeIndex - BlockStart.get()) * _diskInfo.BytesPerMftRecord),
-					(int)_diskInfo.BytesPerMftRecord
-				);
+			fixupRawMftdata(
+				buffer,
+				(int)((nodeIndex - BlockStart.get()) * _diskInfo.BytesPerMftRecord),
+				(int)_diskInfo.BytesPerMftRecord
+			);
 
 			List<Stream> streams = null;
 			if ((_retrieveMode & RetrieveMode.Streams.CODE) == RetrieveMode.Streams.CODE)
+			{
 				streams = new ArrayList<Stream>();
+			}
 
 			AtomicReference<Node> newNode = new AtomicReference<>();
 
-			if (!ProcessMftRecord(
-					buffer,
-					(int)((nodeIndex - BlockStart.get()) * _diskInfo.BytesPerMftRecord),
-					(int)_diskInfo.BytesPerMftRecord,
-					nodeIndex,
-					newNode,
-					streams,
-					false))
+			if (!processMftRecord(
+				buffer,
+				(int)((nodeIndex - BlockStart.get()) * _diskInfo.BytesPerMftRecord),
+				(int)_diskInfo.BytesPerMftRecord,
+				nodeIndex,
+				newNode,
+				streams,
+				false))
+			{
 				continue;
+			}
 
 			nodes[nodeIndex] = newNode.get();
 
 			if (streams != null)
+			{
 				_streams[nodeIndex] = streams.toArray(new Stream[0]);
+			}
 		}
 
-		System.out.printf("%f MB of volume metadata has been read", (float)totalBytesRead / (1024*1024));
+		System.out.printf("%f MB of volume metadata has been read", (float)totalBytesRead / (1024 * 1024));
 
 		return nodes;
 	}
 
 
-	// Recurse the node hierarchy and construct its entire name
-	// stopping at the root directory.
-	String getNodeFullNameCore(long nodeIndex)
+	// Recurse the node hierarchy and construct its entire name stopping at the root directory.
+	String getNodeFullNameCore(long aNodeIndex)
 	{
-		long node = nodeIndex;
+		long node = aNodeIndex;
 
 		ArrayDeque<Long> fullPathNodes = new ArrayDeque<Long>();
 		fullPathNodes.add(node);
@@ -776,10 +733,14 @@ public class NtfsReader
 
 			//loop until we reach the root directory
 			if (parent == ROOTDIRECTORY)
+			{
 				break;
+			}
 
 			if (parent == lastNode)
+			{
 				throw new InvalidDataException("Detected a loop in the tree structure.");
+			}
 
 			fullPathNodes.push(parent);
 
@@ -788,123 +749,59 @@ public class NtfsReader
 		}
 
 		StringBuilder fullPath = new StringBuilder();
-//		fullPath.Append(_driveInfo.Name.TrimEnd(new char[] { '\\' }));
 
 		while (fullPathNodes.size() > 0)
 		{
 			node = fullPathNodes.pop();
 
 			fullPath.append("\\");
-			fullPath.append(GetNameFromIndex(_nodes[(int)node].NameIndex));
+			fullPath.append(getNameFromIndex(_nodes[(int)node].NameIndex));
 		}
 
 		return fullPath.toString();
 	}
 
 
-	/// <param name="driveInfo">The drive you want to read metadata from.</param>
-	/// <param name="include">Information to retrieve from each node while scanning the disk</param>
-	/// <remarks>Streams & Fragments are expensive to store in memory, if you don't need them, don't retrieve them.</remarks>
-	public NtfsReader(PageStore driveInfo, int retrieveMode)
+	public NtfsReader(PageStore aDriveInfo, int aRetrieveMode)
 	{
-		_driveInfo = driveInfo;
-		_retrieveMode = retrieveMode;
+		_driveInfo = aDriveInfo;
+		_retrieveMode = aRetrieveMode;
 
-//		StringBuilder builder = new StringBuilder(1024);
-//		GetVolumeNameForVolumeMountPoint(_driveInfo.RootDirectory.Name, builder, builder.Capacity);
+		initializeDiskInfo();
 
-//		String volume = builder.toString().TrimEnd(new char[] { '\\' });
-//
-//		_volumeHandle =
-//			CreateFile(
-//				volume,
-//				FileAccess.Read,
-//				FileShare.All,
-//				IntPtr.Zero,
-//				FileMode.Open,
-//				0,
-//				IntPtr.Zero
-//				);
-
-//		if (_volumeHandle == null || _volumeHandle.IsInvalid)
-//			throw new IllegalStateException(
-//				String.format(
-//					"Unable to open volume {0}. Make sure it exists and that you have Administrator privileges.",
-//					driveInfo
-//				)
-//			);
-
-		InitializeDiskInfo();
-
-		_nodes = ProcessMft();
-
-		//cleanup anything that isn't used anymore
+		_nodes = processMft();
 		_nameIndex = null;
-//		_volumeHandle = null;
 	}
+
 
 	public IDiskInfo getDiskInfo()
 	{
 		return _diskInfo;
 	}
 
-	/// Get all nodes under the specified rootPath.
-	/// <param name="rootPath">The rootPath must at least contains the drive and may include any number of subdirectories. Wildcards aren't supported.</param>
-	public List<INode> GetNodes(String rootPath)
-	{
-//		Stopwatch stopwatch = new Stopwatch();
-//		stopwatch.Start();
 
+	public List<INode> getNodes(String aRootPath)
+	{
 		List<INode> nodes = new ArrayList<INode>();
 
-		//TODO use Parallel.Net to process this when it becomes available
 		int nodeCount = _nodes.length;
-		for (int i = 0; i < nodeCount; ++i)
-			if (_nodes[i].NameIndex != 0 && getNodeFullNameCore(i).startsWith(rootPath))
+
+		for (int i = 0; i < nodeCount; i++)
+		{
+			System.out.println(_nodes[i].NameIndex + " " + getNodeFullNameCore(i));
+
+			if (_nodes[i].NameIndex != 0 && getNodeFullNameCore(i).startsWith(aRootPath))
+			{
 				nodes.add(new NodeWrapper(this, i, _nodes[i]));
-
-//		stopwatch.Stop();
-
-//		Trace.WriteLine(
-//			string.Format(
-//				"{0} node{1} have been retrieved in {2} ms",
-//				nodes.Count,
-//				nodes.Count > 1 ? "s" : string.Empty,
-//				(float)stopwatch.ElapsedTicks / TimeSpan.TicksPerMillisecond
-//			)
-//		);
+			}
+		}
 
 		return nodes;
 	}
 
-	public byte[] GetVolumeBitmap()
+
+	public byte[] getVolumeBitmap()
 	{
 		return _bitmapData;
 	}
-
-//	public void Dispose()
-//	{
-//		if (_volumeHandle != null)
-//		{
-//			_volumeHandle.Dispose();
-//			_volumeHandle = null;
-//		}
-//	}
-
-
-//	private class NativeOverlapped
-//	{
-//		public int privateLow; // IntPtr
-//		public int privateHigh; // IntPtr
-//		public long Offset; // UInt64
-//		public int EventHandle; // IntPtr
-//
-//		public NativeOverlapped(long offset) // UInt64
-//		{
-//			Offset = offset;
-//			EventHandle = IntPtr.Zero;
-//			privateLow = IntPtr.Zero;
-//			privateHigh = IntPtr.Zero;
-//		}
-//	}
 }

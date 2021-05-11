@@ -17,6 +17,8 @@ class Unmarshaller
 	private final static String MAGENTA = "\033[0;35m";
 	private final static String RESET = "\033[0m";
 
+	private final static boolean DEBUG = false;
+
 
 	public static <T> T unmarshal(Class<T> aType, byte[] aBuffer, int aOffset)
 	{
@@ -26,11 +28,11 @@ class Unmarshaller
 
 	public static <T> T unmarshal(Class<T> aType, byte[] aBuffer, AtomicInteger aOffset)
 	{
-		System.out.println(CYAN + aType.getSimpleName() + RESET + " {");
+		if (DEBUG) System.out.println(CYAN + aType.getSimpleName() + RESET + " {");
 
 		T v = unmarshal(aType, aBuffer, aOffset, "    ");
 
-		System.out.println("}");
+		if (DEBUG) System.out.println("}");
 
 		return v;
 	}
@@ -187,9 +189,11 @@ class Unmarshaller
 					}
 					else
 					{
-						System.out.println(aIndent + CYAN + field.getType().getSimpleName() + " " + GREEN + field.getName() + RESET + " = {");
+						if (DEBUG) System.out.println(aIndent + CYAN + field.getType().getSimpleName() + " " + GREEN + field.getName() + RESET + " = {");
+
 						value = unmarshal(field.getType(), aBuffer, aOffset, aIndent + "    ");
-						System.out.println(aIndent + "}");
+
+						if (DEBUG) System.out.println(aIndent + "}");
 					}
 				}
 
@@ -230,7 +234,7 @@ class Unmarshaller
 
 	private static void print(String aIndent, Field aField, Object aValue)
 	{
-		System.out.println(aIndent + CYAN + aField.getType().getSimpleName() + " " + GREEN + aField.getName() + " = " + YELLOW + aValue + RESET + ";");
+		if (DEBUG) System.out.println(aIndent + CYAN + aField.getType().getSimpleName() + " " + GREEN + aField.getName() + " = " + YELLOW + aValue + RESET + ";");
 	}
 
 

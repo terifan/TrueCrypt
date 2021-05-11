@@ -36,7 +36,7 @@ class NodeWrapper implements INode
 
 	public String getName()
 	{
-		return _reader.GetNameFromIndex(_node.NameIndex);
+		return _reader.getNameFromIndex(_node.NameIndex);
 	}
 
 	public long getSize() // UInt64

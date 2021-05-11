@@ -8,14 +8,14 @@ class Stream
 {
 	public long Clusters; // UInt64                      // Total number of clusters.
 	public long Size; // UInt64                          // Total number of bytes.
-	public AttributeType Type;
+	public AttributeType mType;
 	public int NameIndex;
 	public List<Fragment> _fragments;
 
 	public Stream(int nameIndex, AttributeType type, long size)
 	{
 		NameIndex = nameIndex;
-		Type = type;
+		mType = type;
 		Size = size;
 	}
 
@@ -31,6 +31,6 @@ class Stream
 	@Override
 	public String toString()
 	{
-		return "Stream{" + "Clusters=" + Clusters + ", Size=" + Size + ", Type=" + Type + ", NameIndex=" + NameIndex + ", _fragments=" + _fragments.size() + '}';
+		return "Stream{" + "Clusters=" + Clusters + ", Size=" + Size + ", Type=" + mType + ", NameIndex=" + NameIndex + ", _fragments=" + _fragments.size() + '}';
 	}
 }

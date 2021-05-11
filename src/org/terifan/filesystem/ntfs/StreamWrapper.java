@@ -20,7 +20,7 @@ class StreamWrapper implements IStream
 
 	public String getName()
 	{
-		return _reader.GetNameFromIndex(_reader._streams[_parentNode.getNodeIndex()][_streamIndex].NameIndex);
+		return _reader.getNameFromIndex(_reader._streams[_parentNode.getNodeIndex()][_streamIndex].NameIndex);
 	}
 
 	public long getSize()
