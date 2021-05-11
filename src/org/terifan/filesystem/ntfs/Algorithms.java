@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Algorithms
 {
-	public static HashMap<Long, List<INode>> AggregateByFragments(Iterable<INode> nodes, Long minimumFragments)
+	public static HashMap<Long, List<INode>> aggregateByFragments(Iterable<INode> nodes, Long minimumFragments)
 	{
 		HashMap<Long, List<INode>> fragmentsAggregate = new HashMap<Long, List<INode>>();
 
@@ -15,19 +15,23 @@ public class Algorithms
 		{
 			List<IStream> streams = node.getStreams();
 			if (streams == null || streams.size() == 0)
+			{
 				continue;
+			}
 
 			List<IFragment> fragments = streams.get(0).getFragments();
 			if (fragments == null)
+			{
 				continue;
+			}
 
 			Long fragmentCount = (long)fragments.size();
-
 			if (fragmentCount < minimumFragments)
+			{
 				continue;
+			}
 
 			List<INode> nodeList = fragmentsAggregate.get(fragmentCount);
-
 			if (nodeList == null)
 			{
 				nodeList = new ArrayList<INode>();
@@ -40,14 +44,17 @@ public class Algorithms
 		return fragmentsAggregate;
 	}
 
-	public static HashMap<Long, List<INode>> AggregateBySize(Iterable<INode> nodes, Long minimumSize)
+
+	public static HashMap<Long, List<INode>> aggregateBySize(Iterable<INode> nodes, Long minimumSize)
 	{
 		HashMap<Long, List<INode>> sizeAggregate = new HashMap<Long, List<INode>>();
 
 		for (INode node : nodes)
 		{
 			if (Attributes.Directory.isSet(node.getAttributes()) || node.getSize() < minimumSize)
+			{
 				continue;
+			}
 
 			List<INode> nodeList = sizeAggregate.get(node.getSize());
 

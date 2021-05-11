@@ -111,7 +111,7 @@ public class NtfsReader
 	}
 
 
-	/// Read the next contiguous block of information on disk
+	// Read the next contiguous block of information on disk
 	private boolean readNextChunk(byte[] buffer, int bufferSize, int nodeIndex, int fragmentIndex, Stream dataStream, AtomicLong BlockStart, AtomicLong BlockEnd, AtomicLong Vcn, AtomicLong RealVcn)
 	{
 		BlockStart.set(nodeIndex);
@@ -171,6 +171,16 @@ public class NtfsReader
 		readFile(buffer, 0, (int)len, position);
 
 		return true;
+	}
+
+
+	public byte[] readFragment(IFragment aFragment, int aFragmentOffset, byte[] aBuffer, int aBufferOffset, int aBufferLength)
+	{
+		long position = aFragment.getLcn() * mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster;
+
+		readFile(aBuffer, aBufferOffset, aBufferLength, position + aFragmentOffset);
+
+		return aBuffer;
 	}
 
 
@@ -289,7 +299,7 @@ public class NtfsReader
 	}
 
 
-	private void processAttributes(AtomicReference<Node> aNode, int aNodeIndex, byte[] aBuffer, int aOffset, long aBufferLength, short aInstance, int aDepth, List<Stream> aStreams, boolean aIsMftNode)
+	private void processAttributes(AtomicReference<Node> aNode, int aNodeIndex, byte[] aBuffer, int aOffset, long aBufferLength, short aInstance, int aDepth, List<Stream> oStreams, boolean aIsMftNode)
 	{
 		Attribute attribute = null;
 
@@ -379,7 +389,7 @@ public class NtfsReader
 					aNode.get().mSize = nonResidentAttribute.mDataSize;
 				}
 
-				if (aStreams != null)
+				if (oStreams != null)
 				{
 					int streamNameIndex = 0;
 					if (attribute.mNameLength > 0)
@@ -387,12 +397,12 @@ public class NtfsReader
 						streamNameIndex = getNameIndex(new String(aBuffer, (attributeOffset + attribute.mNameOffset), (int)attribute.mNameLength));
 					}
 
-					Stream stream = searchStream(aStreams, AttributeType.decode(attribute.mAttributeType), streamNameIndex);
+					Stream stream = searchStream(oStreams, AttributeType.decode(attribute.mAttributeType), streamNameIndex);
 
 					if (stream == null)
 					{
 						stream = new Stream(streamNameIndex, AttributeType.decode(attribute.mAttributeType), nonResidentAttribute.mDataSize);
-						aStreams.add(stream);
+						oStreams.add(stream);
 					}
 					else if (stream.mSize == 0)
 					{
@@ -408,9 +418,9 @@ public class NtfsReader
 			}
 		}
 
-		if (aStreams != null && aStreams.size() > 0)
+		if (oStreams != null && oStreams.size() > 0)
 		{
-			aNode.get().mSize = aStreams.get(0).mSize;
+			aNode.get().mSize = oStreams.get(0).mSize;
 		}
 	}
 
@@ -457,9 +467,9 @@ public class NtfsReader
 
 
 	/// Process an actual MFT record from the buffer
-	private boolean processMftRecord(byte[] aBuffer, int aOffset, long aLength, int aNodeIndex, AtomicReference<Node> aNode, List<Stream> aStreams, boolean aIsMftNode)
+	private boolean processMftRecord(byte[] aBuffer, int aOffset, long aLength, int aNodeIndex, AtomicReference<Node> oNode, List<Stream> oStreams, boolean aIsMftNode)
 	{
-		aNode.set(new Node());
+		oNode.set(new Node());
 
 		FileRecordHeader ntfsFileRecordHeader = unmarshal(FileRecordHeader.class, aBuffer, aOffset);
 
@@ -493,14 +503,14 @@ public class NtfsReader
 		}
 
 		//make the file appear in the rootdirectory by default
-		aNode.get().mParentNodeIndex = ROOTDIRECTORY;
+		oNode.get().mParentNodeIndex = ROOTDIRECTORY;
 
 		if ((ntfsFileRecordHeader.mFlags & 2) == 2)
 		{
-			aNode.get().mAttributes |= Attributes.Directory.CODE;
+			oNode.get().mAttributes |= Attributes.Directory.CODE;
 		}
 
-		processAttributes(aNode, aNodeIndex, aBuffer, aOffset + (0xffff & ntfsFileRecordHeader.mAttributeOffset), aLength - (0xffff & ntfsFileRecordHeader.mAttributeOffset), (short)65535, 0, aStreams, aIsMftNode);
+		processAttributes(oNode, aNodeIndex, aBuffer, aOffset + (0xffff & ntfsFileRecordHeader.mAttributeOffset), aLength - (0xffff & ntfsFileRecordHeader.mAttributeOffset), (short)65535, 0, oStreams, aIsMftNode);
 
 		return true;
 	}

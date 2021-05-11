@@ -1,6 +1,10 @@
 package example;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
+import javax.imageio.ImageIO;
+import org.terifan.filesystem.ntfs.INode;
+import org.terifan.filesystem.ntfs.IStream;
 import org.terifan.filesystem.ntfs.NTFSFileSystem;
 import org.terifan.pagestore.FilePageStore;
 import org.terifan.truecrypt.TrueCryptPageStore;
@@ -14,7 +18,19 @@ public class ExampleNTFS
 		{
 			try (NTFSFileSystem fs = new NTFSFileSystem(TrueCryptPageStore.open(new FilePageStore(new File("d:/test.tc")), "test")))
 			{
+				for (INode node : fs.getNodes(""))
+				{
+		//			System.out.println(node);
 
+					if (node.getName().equals("9.jpg"))
+					{
+						IStream stream = node.getStreams().get(0);
+
+						BufferedImage image = ImageIO.read(fs.readStream(stream));
+
+						System.out.println(image);
+					}
+				}
 			}
 
 //			try (FatFileSystem fs = new FatFileSystem(TrueCryptPageStore.open(new FilePageStore(new File("d:/test.tc")), "password")))

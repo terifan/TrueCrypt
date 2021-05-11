@@ -4,7 +4,7 @@ import java.util.List;
 
 
 // In Ntfs, each node may have multiple streams.
-interface IStream
+public interface IStream
 {
 	String getName();
 
