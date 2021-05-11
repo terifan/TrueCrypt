@@ -1,10 +1,7 @@
 package example;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
-import javax.imageio.ImageIO;
 import org.terifan.filesystem.ntfs.INode;
-import org.terifan.filesystem.ntfs.IStream;
 import org.terifan.filesystem.ntfs.NTFSFileSystem;
 import org.terifan.pagestore.FilePageStore;
 import org.terifan.truecrypt.TrueCryptPageStore;
@@ -16,7 +13,7 @@ public class ExampleNTFS
 	{
 		try
 		{
-			try (NTFSFileSystem fs = new NTFSFileSystem(TrueCryptPageStore.open(new FilePageStore(new File("d:/test.tc")), "test")))
+			try (NTFSFileSystem fs = new NTFSFileSystem(TrueCryptPageStore.open(new FilePageStore(new File("d:/test.tc")), "password")))
 			{
 				for (INode node : fs.getNodes(""))
 				{
