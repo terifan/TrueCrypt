@@ -17,6 +17,8 @@ public class NTFSFileSystem implements AutoCloseable
 
 		for (INode node : reader.getNodes(""))
 		{
+			System.out.println(node.getStreams() == null ? 0 : node.getStreams().size());
+
 			System.out.println(node);
 		}
 	}

@@ -1,9 +1,6 @@
 package org.terifan.filesystem.ntfs;
 
 
-/**
- * SerializedStruct - do not modify!
- */
 class DiskInfoWrapper implements IDiskInfo
 {
 	public short mBytesPerSector;

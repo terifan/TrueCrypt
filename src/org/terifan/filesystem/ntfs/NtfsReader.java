@@ -23,7 +23,7 @@ public class NtfsReader
 
 	private PageStore mPageStore;
 	private DiskInfoWrapper mDiskInfo;
-	private Node[] mNodes;
+	private ArrayList<Node> mNodes;
 	private ArrayList<String> mNames;
 	private int mRetrieveMode;
 	private byte[] mBitmapData;
@@ -41,7 +41,7 @@ public class NtfsReader
 
 		initializeDiskInfo();
 
-		mNodes = processMft();
+		processMft();
 	}
 
 
@@ -339,46 +339,43 @@ public class NtfsReader
 				switch (AttributeType.decode(attribute.mAttributeType))
 				{
 					case AttributeFileName:
-						AttributeFileName attributeFileName = unmarshal(AttributeFileName.class, aBuffer, AttributeOffset + residentAttribute.mValueOffset);
+					{
+						AttributeFileName attr = unmarshal(AttributeFileName.class, aBuffer, AttributeOffset + residentAttribute.mValueOffset);
 
-						if (attributeFileName.mParentDirectory.InodeNumberHighPart > 0)
+						if (attr.mParentDirectory.mInodeNumberHighPart > 0)
 						{
 							throw new IllegalStateException("48 bits inode are not supported to reduce memory footprint.");
 						}
 
-//						node.get().ParentNodeIndex = ((long)attributeFileName.ParentDirectory.InodeNumberHighPart << 32) + attributeFileName.ParentDirectory.InodeNumberLowPart;
-						aNode.get().mParentNodeIndex = attributeFileName.mParentDirectory.InodeNumberLowPart;
+//						aNode.get().mParentNodeIndex = ((long)attr.mParentDirectory.mInodeNumberHighPart << 32) + attr.mParentDirectory.mInodeNumberLowPart;
+						aNode.get().mParentNodeIndex = attr.mParentDirectory.mInodeNumberLowPart;
 
-						if (attributeFileName.mNameType == 1 || aNode.get().mNameIndex == 0)
-//							node.get().NameIndex = GetNameIndex(new String(attributeFileName.Name, 0, attributeFileName.NameLength));
+						if (attr.mNameType == 1 || aNode.get().mNameIndex == 0)
 						{
-							aNode.get().mNameIndex = getNameIndex(attributeFileName.mName);
+//							aNode.get().mNameIndex = getNameIndex(attr.mName.substring(0, attr.mNameLength));
+							aNode.get().mNameIndex = getNameIndex(attr.mName);
 						}
 
 						break;
-
+					}
 					case AttributeStandardInformation:
-						AttributeStandardInformation attributeStandardInformation = unmarshal(AttributeStandardInformation.class, aBuffer, AttributeOffset + residentAttribute.mValueOffset);
+					{
+						AttributeStandardInformation attr = unmarshal(AttributeStandardInformation.class, aBuffer, AttributeOffset + residentAttribute.mValueOffset);
 
-						aNode.get().mAttributes |= attributeStandardInformation.mFileAttributes;
+						aNode.get().mAttributes |= attr.mFileAttributes;
 
-						if ((mRetrieveMode & RetrieveMode.StandardInformations.CODE) == RetrieveMode.StandardInformations.CODE)
+						if (RetrieveMode.StandardInformations.isSet(mRetrieveMode))
 						{
-							mStandardInformations[aNodeIndex]
-								= new StandardInformation(
-									attributeStandardInformation.mCreationTime,
-									attributeStandardInformation.mFileChangeTime,
-									attributeStandardInformation.mLastAccessTime
-								);
+							mStandardInformations[aNodeIndex] = new StandardInformation(attr.mCreationTime, attr.mFileChangeTime, attr.mLastAccessTime);
 						}
 
 						break;
-
+					}
 					case AttributeData:
 						aNode.get().mSize = residentAttribute.mValueLength;
 						break;
 					default:
-						System.out.println("Unsupported: " + AttributeType.decode(attribute.mAttributeType));
+//						System.out.println("Unsupported: " + AttributeType.decode(attribute.mAttributeType));
 						break;
 				}
 			}
@@ -413,7 +410,7 @@ public class NtfsReader
 					}
 
 					//we need the fragment of the MFTNode so retrieve them this time even if fragments aren't normally read
-					if (aIsMftNode || (mRetrieveMode & RetrieveMode.Fragments.CODE) == RetrieveMode.Fragments.CODE)
+					if (aIsMftNode || RetrieveMode.Fragments.isSet(mRetrieveMode))
 					{
 						processFragments(stream, aBuffer, AttributeOffset + nonResidentAttribute.mRunArrayOffset, attribute.mLength - nonResidentAttribute.mRunArrayOffset, nonResidentAttribute.mStartingVcn);
 					}
@@ -487,7 +484,7 @@ public class NtfsReader
 			return false;
 		}
 
-		long baseInode = (ntfsFileRecordHeader.mBaseFileRecord.InodeNumberHighPart << 32) + ntfsFileRecordHeader.mBaseFileRecord.InodeNumberLowPart;
+		long baseInode = (ntfsFileRecordHeader.mBaseFileRecord.mInodeNumberHighPart << 32) + ntfsFileRecordHeader.mBaseFileRecord.mInodeNumberLowPart;
 
 		//This is an inode extension used in an AttributeAttributeList of another inode, don't parse it
 		if (baseInode != 0)
@@ -524,6 +521,8 @@ public class NtfsReader
 		long vcn = 0;
 		int maxMftBitmapBytes = 0;
 
+		int clusterSize = mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster;
+
 		Stream bitmapStream = searchStream(aStreams, AttributeType.AttributeBitmap);
 		if (bitmapStream == null)
 		{
@@ -534,7 +533,7 @@ public class NtfsReader
 		{
 			if (fragment.mLcn != VIRTUALFRAGMENT)
 			{
-				maxMftBitmapBytes += (fragment.mNextVcn - vcn) * mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster;
+				maxMftBitmapBytes += (fragment.mNextVcn - vcn) * clusterSize;
 			}
 
 			vcn = fragment.mNextVcn;
@@ -543,15 +542,15 @@ public class NtfsReader
 		byte[] bitmapData = new byte[maxMftBitmapBytes];
 
 		vcn = 0;
-		long realVcn = 0; // UInt64
+		long realVcn = 0;
 
 		for (Fragment fragment : bitmapStream.getFragments())
 		{
 			if (fragment.mLcn != VIRTUALFRAGMENT)
 			{
-				int offset = (int)(realVcn * mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster);
-				int length = (int)((fragment.mNextVcn - vcn) * mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster);
-				long absolutePosition = fragment.mLcn * mDiskInfo.mBytesPerSector * mDiskInfo.mSectorsPerCluster;
+				int offset = (int)(realVcn * clusterSize);
+				int length = (int)((fragment.mNextVcn - vcn) * clusterSize);
+				long absolutePosition = fragment.mLcn * clusterSize;
 
 				readFile(bitmapData, offset, length, absolutePosition);
 
@@ -565,7 +564,7 @@ public class NtfsReader
 	}
 
 
-	private Node[] processMft()
+	private void processMft()
 	{
 		int bufferSize = 256 * 1024;
 
@@ -579,7 +578,7 @@ public class NtfsReader
 
 		List<Stream> mftStreams = new ArrayList<Stream>();
 
-		if ((mRetrieveMode & RetrieveMode.StandardInformations.CODE) == RetrieveMode.StandardInformations.CODE)
+		if (RetrieveMode.StandardInformations.isSet(mRetrieveMode))
 		{
 			mStandardInformations = new StandardInformation[1]; //allocate some space for $MFT record
 		}
@@ -602,17 +601,17 @@ public class NtfsReader
 			maxInode = (int)(dataStream.mSize / mDiskInfo.mBytesPerMftRecord);
 		}
 
-		Node[] nodes = new Node[maxInode];
-		nodes[0] = mftNode.get();
+		mNodes = new ArrayList<>();
+		mNodes.add(mftNode.get());
 
-		if ((mRetrieveMode & RetrieveMode.StandardInformations.CODE) == RetrieveMode.StandardInformations.CODE)
+		if (RetrieveMode.StandardInformations.isSet(mRetrieveMode))
 		{
 			StandardInformation mftRecordInformation = mStandardInformations[0];
 			mStandardInformations = new StandardInformation[maxInode];
 			mStandardInformations[0] = mftRecordInformation;
 		}
 
-		if ((mRetrieveMode & RetrieveMode.Streams.CODE) == RetrieveMode.Streams.CODE)
+		if (RetrieveMode.Streams.isSet(mRetrieveMode))
 		{
 			mStreams = new Stream[maxInode][];
 		}
@@ -644,7 +643,7 @@ public class NtfsReader
 			fixupRawMftdata(buffer, (int)((nodeIndex - blockStart.get()) * mDiskInfo.mBytesPerMftRecord), (int)mDiskInfo.mBytesPerMftRecord);
 
 			List<Stream> streams = null;
-			if ((mRetrieveMode & RetrieveMode.Streams.CODE) == RetrieveMode.Streams.CODE)
+			if (RetrieveMode.Streams.isSet(mRetrieveMode))
 			{
 				streams = new ArrayList<Stream>();
 			}
@@ -656,7 +655,7 @@ public class NtfsReader
 				continue;
 			}
 
-			nodes[nodeIndex] = newNode.get();
+			mNodes.add(newNode.get());
 
 			if (streams != null)
 			{
@@ -665,8 +664,6 @@ public class NtfsReader
 		}
 
 		System.out.printf("%.1f MB of volume metadata has been read%n", totalBytesRead / 1024.0 / 1024.0);
-
-		return nodes;
 	}
 
 
@@ -679,7 +676,7 @@ public class NtfsReader
 		Long lastNode = aNodeIndex;
 		for (;;)
 		{
-			long parent = mNodes[(int)aNodeIndex].mParentNodeIndex;
+			long parent = mNodes.get((int)aNodeIndex).mParentNodeIndex;
 
 			if (parent == ROOTDIRECTORY) // loop until we reach the root directory
 			{
@@ -704,7 +701,7 @@ public class NtfsReader
 			aNodeIndex = fullPathNodes.pop();
 
 			fullPath.append("\\");
-			fullPath.append(getNameFromIndex(mNodes[(int)aNodeIndex].mNameIndex));
+			fullPath.append(getNameFromIndex(mNodes.get((int)aNodeIndex).mNameIndex));
 		}
 
 		return fullPath.toString();
@@ -721,17 +718,18 @@ public class NtfsReader
 	{
 		List<INode> nodes = new ArrayList<INode>();
 
-		int nodeCount = mNodes.length;
+		int nodeCount = mNodes.size();
 
 		System.out.println("*****" + nodeCount);
 
 		for (int i = 0; i < nodeCount; i++)
 		{
-			System.out.println(mNodes[i].mNameIndex + " " + getNodeFullNameCore(i));
+			System.out.println(mNodes.get(i));
+			System.out.println(mNodes.get(i).mNameIndex + " " + getNodeFullNameCore(i));
 
-			if (mNodes[i].mNameIndex != 0 && getNodeFullNameCore(i).startsWith(aRootPath))
+			if (mNodes.get(i).mNameIndex != 0 && getNodeFullNameCore(i).startsWith(aRootPath))
 			{
-				nodes.add(new NodeWrapper(this, i, mNodes[i]));
+				nodes.add(new NodeWrapper(this, i, mNodes.get(i)));
 			}
 		}
 

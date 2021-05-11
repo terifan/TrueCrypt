@@ -6,7 +6,7 @@ package org.terifan.filesystem.ntfs;
  */
 class NodeReference
 {
-	public int InodeNumberLowPart;
-	public short InodeNumberHighPart;
-	public short SequenceNumber;
+	public int mInodeNumberLowPart;
+	public short mInodeNumberHighPart;
+	public short mSequenceNumber;
 };

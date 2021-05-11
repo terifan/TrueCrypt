@@ -22,4 +22,10 @@ enum RetrieveMode
 	{
 		CODE = aCode;
 	}
+
+
+	boolean isSet(int aMode)
+	{
+		return (aMode & CODE) == CODE;
+	}
 }

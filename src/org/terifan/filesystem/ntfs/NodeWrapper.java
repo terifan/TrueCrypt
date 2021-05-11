@@ -44,7 +44,7 @@ class NodeWrapper implements INode
 	}
 
 
-	public long getSize() // UInt64
+	public long getSize()
 	{
 		return mNode.mSize;
 	}
@@ -114,5 +114,12 @@ class NodeWrapper implements INode
 		}
 
 		return mReader.mStandardInformations[mNodeIndex].mLastAccessTime;
+	}
+
+
+	@Override
+	public String toString()
+	{
+		return "NodeWrapper{" + "mNodeIndex=" + mNodeIndex + ", mFullName=" + mFullName + '}';
 	}
 }
