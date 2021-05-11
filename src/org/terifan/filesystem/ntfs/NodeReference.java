@@ -1,9 +1,12 @@
 package org.terifan.filesystem.ntfs;
 
 
+/**
+ * SerializedStruct - do not modify!
+ */
 class NodeReference
 {
-	public int InodeNumberLowPart; // UInt32
-	public short InodeNumberHighPart; // UInt16
-	public short SequenceNumber; // UInt16
+	public int InodeNumberLowPart;
+	public short InodeNumberHighPart;
+	public short SequenceNumber;
 };

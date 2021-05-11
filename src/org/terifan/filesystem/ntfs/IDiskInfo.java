@@ -1,6 +1,5 @@
 package org.terifan.filesystem.ntfs;
 
-// Disk information
 
 public interface IDiskInfo
 {

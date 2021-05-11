@@ -1,14 +1,17 @@
 package org.terifan.filesystem.ntfs;
 
 
+/**
+ * SerializedStruct - do not modify!
+ */
 class AttributeList
 {
-	public AttributeType AttributeType;
-	public short Length; // UInt16
-	public byte NameLength;
-	public byte NameOffset;
-	public long LowestVcn; // UInt64
-	public NodeReference FileReferenceNumber;
-	public short Instance; // UInt16
-	public short[] AlignmentOrReserved = new short[3]; // UInt16
+	public AttributeType mAttributeType;
+	public short mLength;
+	public byte mNameLength;
+	public byte mNameOffset;
+	public long mLowestVcn;
+	public NodeReference mFileReferenceNumber;
+	public short mInstance;
+	public short[] mAlignmentOrReserved = new short[3];
 }

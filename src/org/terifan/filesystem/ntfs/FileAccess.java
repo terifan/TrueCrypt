@@ -7,11 +7,11 @@ enum FileAccess
 	ReadWrite(3),
 	Write(2);
 
-	private int mFlag;
+	final int CODE;
 
 
-	private FileAccess(int aFlag)
+	private FileAccess(int aCode)
 	{
-		mFlag = aFlag;
+		CODE = aCode;
 	}
 }

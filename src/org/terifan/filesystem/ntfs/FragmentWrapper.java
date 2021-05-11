@@ -1,25 +1,27 @@
 package org.terifan.filesystem.ntfs;
 
 
-// Add some functionality to the basic stream
 class FragmentWrapper implements IFragment
 {
-	StreamWrapper _owner;
-	Fragment _fragment;
+	StreamWrapper mOwner;
+	Fragment mFragment;
 
-	public FragmentWrapper(StreamWrapper owner, Fragment fragment)
+
+	public FragmentWrapper(StreamWrapper aOwner, Fragment aFragment)
 	{
-		_owner = owner;
-		_fragment = fragment;
+		mOwner = aOwner;
+		mFragment = aFragment;
 	}
+
 
 	public long getLcn()
 	{
-		return _fragment.Lcn;
+		return mFragment.mLcn;
 	}
+
 
 	public long getNextVcn()
 	{
-		return _fragment.NextVcn;
+		return mFragment.mNextVcn;
 	}
 }

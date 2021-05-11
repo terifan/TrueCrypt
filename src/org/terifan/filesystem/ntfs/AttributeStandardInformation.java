@@ -1,18 +1,21 @@
 package org.terifan.filesystem.ntfs;
 
 
+/**
+ * SerializedStruct - do not modify!
+ */
 class AttributeStandardInformation
 {
-	public DateTime CreationTime; // UInt64
-	public DateTime FileChangeTime; // UInt64
-	public DateTime MftChangeTime; // UInt64
-	public DateTime LastAccessTime; // UInt64
-	public int FileAttributes; // UInt32       /* READ_ONLY=0x01, HIDDEN=0x02, SYSTEM=0x04, VOLUME_ID=0x08, ARCHIVE=0x20, DEVICE=0x40 */
-	public int MaximumVersions; // UInt32
-	public int VersionNumber; // UInt32
-	public int ClassId; // UInt32
-	public int OwnerId; // UInt32                        // NTFS 3.0 only
-	public int SecurityId; // UInt32                     // NTFS 3.0 only
-	public long QuotaCharge; // UInt64                // NTFS 3.0 only
-	public long Usn; // UInt64                              // NTFS 3.0 only
+	public DateTime mCreationTime;
+	public DateTime mFileChangeTime;
+	public DateTime mMftChangeTime;
+	public DateTime mLastAccessTime;
+	public int mFileAttributes;                 // READ_ONLY=0x01, HIDDEN=0x02, SYSTEM=0x04, VOLUME_ID=0x08, ARCHIVE=0x20, DEVICE=0x40
+	public int mMaximumVersions;
+	public int mVersionNumber;
+	public int mClassId;
+	public int mOwnerId;                        // NTFS 3.0 only
+	public int mSecurityId;                     // NTFS 3.0 only
+	public long mQuotaCharge;                   // NTFS 3.0 only
+	public long mUsn;                           // NTFS 3.0 only
 }

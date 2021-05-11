@@ -1,67 +1,79 @@
 package org.terifan.filesystem.ntfs;
 
 
-/// Simple structure of available disk informations.
+/**
+ * SerializedStruct - do not modify!
+ */
 class DiskInfoWrapper implements IDiskInfo
 {
-	public short BytesPerSector; // UInt16
-	public byte SectorsPerCluster;
-	public long TotalSectors; // UInt64
-	public long MftStartLcn; // UInt64
-	public long Mft2StartLcn; // UInt64
-	public int ClustersPerMftRecord; // UInt32
-	public int ClustersPerIndexRecord; // UInt32
-	public long BytesPerMftRecord; // UInt64
-	public long BytesPerCluster; // UInt64
-	public long TotalClusters; // UInt64
+	public short mBytesPerSector;
+	public byte mSectorsPerCluster;
+	public long mTotalSectors;
+	public long mMftStartLcn;
+	public long mMft2StartLcn;
+	public int mClustersPerMftRecord;
+	public int mClustersPerIndexRecord;
+	public long mBytesPerMftRecord;
+	public long mBytesPerCluster;
+	public long mTotalClusters;
+
 
 	public int getBytesPerSector()
 	{
-		return BytesPerSector;
+		return mBytesPerSector;
 	}
+
 
 	public byte getSectorsPerCluster()
 	{
-		return SectorsPerCluster;
+		return mSectorsPerCluster;
 	}
+
 
 	public long getTotalSectors()
 	{
-		return TotalSectors;
+		return mTotalSectors;
 	}
+
 
 	public long getMftStartLcn()
 	{
-		return MftStartLcn;
+		return mMftStartLcn;
 	}
+
 
 	public long getMft2StartLcn()
 	{
-		return Mft2StartLcn;
+		return mMft2StartLcn;
 	}
+
 
 	public int getClustersPerMftRecord()
 	{
-		return ClustersPerMftRecord;
+		return mClustersPerMftRecord;
 	}
+
 
 	public int getClustersPerIndexRecord()
 	{
-		return ClustersPerIndexRecord;
+		return mClustersPerIndexRecord;
 	}
+
 
 	public long getBytesPerMftRecord()
 	{
-		return BytesPerMftRecord;
+		return mBytesPerMftRecord;
 	}
+
 
 	public long getBytesPerCluster()
 	{
-		return BytesPerCluster;
+		return mBytesPerCluster;
 	}
+
 
 	public long getTotalClusters()
 	{
-		return TotalClusters;
+		return mTotalClusters;
 	}
 }

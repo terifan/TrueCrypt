@@ -3,19 +3,20 @@ package org.terifan.filesystem.ntfs;
 
 class Fragment
 {
-	public long Lcn; // UInt64                // Logical cluster number, location on disk.
-	public long NextVcn; // UInt64            // Virtual cluster number of next fragment.
+	public long mLcn;                // Logical cluster number, location on disk.
+	public long mNextVcn;            // Virtual cluster number of next fragment.
 
-	public Fragment(long lcn, long nextVcn)
+
+	public Fragment(long aLcn, long aNextVcn)
 	{
-		Lcn = lcn;
-		NextVcn = nextVcn;
+		mLcn = aLcn;
+		mNextVcn = aNextVcn;
 	}
 
 
 	@Override
 	public String toString()
 	{
-		return "Fragment{" + "Lcn=" + Lcn + ", NextVcn=" + NextVcn + '}';
+		return "Fragment{" + "Lcn=" + mLcn + ", NextVcn=" + mNextVcn + '}';
 	}
 }

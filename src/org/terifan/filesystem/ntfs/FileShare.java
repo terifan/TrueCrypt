@@ -9,11 +9,11 @@ enum FileShare
 	Delete(4),
 	All(1 + 2 + 4);
 
-	private int mFlag;
+	final int CODE;
 
 
-	private FileShare(int aFlag)
+	private FileShare(int aCode)
 	{
-		mFlag = aFlag;
+		CODE = aCode;
 	}
 }

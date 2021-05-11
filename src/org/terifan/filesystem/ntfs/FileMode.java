@@ -10,11 +10,11 @@ enum FileMode
 	OpenOrCreate(4),
 	Truncate(5);
 
-	private int mFlag;
+	final int CODE;
 
 
-	private FileMode(int aFlag)
+	private FileMode(int aCode)
 	{
-		mFlag = aFlag;
+		CODE = aCode;
 	}
 }

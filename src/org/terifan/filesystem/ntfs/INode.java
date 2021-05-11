@@ -3,7 +3,6 @@ package org.terifan.filesystem.ntfs;
 import java.util.List;
 
 
-// Directory & Files Information are stored in inodes
 public interface INode
 {
 	int getAttributes();

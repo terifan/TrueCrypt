@@ -5,7 +5,8 @@ enum RecordType
 {
 	File(0x454c4946); // 'FILE' in ASCII
 
-	int CODE;
+	final int CODE;
+
 
 	private RecordType(int aRecordType)
 	{

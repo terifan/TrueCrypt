@@ -1,11 +1,10 @@
 package org.terifan.filesystem.ntfs;
 
 
-// Node struct for file and directory entries
 class Node
 {
-	public int Attributes; // Attributes
-	public int ParentNodeIndex; // UInt32
-	public long Size; // UInt64
-	public int NameIndex;
+	public int mAttributes;
+	public int mParentNodeIndex;
+	public long mSize;
+	public int mNameIndex;
 }

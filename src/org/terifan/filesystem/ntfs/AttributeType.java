@@ -3,7 +3,7 @@ package org.terifan.filesystem.ntfs;
 
 enum AttributeType
 {
-	AttributeInvalid(0x00),         /* Not defined by Windows */
+	AttributeInvalid(0x00),             // Not defined by Windows
 	AttributeStandardInformation(0x10),
 	AttributeAttributeList(0x20),
 	AttributeFileName(0x30),
@@ -15,7 +15,7 @@ enum AttributeType
 	AttributeIndexRoot(0x90),
 	AttributeIndexAllocation(0xA0),
 	AttributeBitmap(0xB0),
-	AttributeReparsePoint(0xC0),         /* Reparse Point(Symbolic link */
+	AttributeReparsePoint(0xC0),         // Reparse Point (Symbolic link)
 	AttributeEAInformation(0xD0),
 	AttributeEA(0xE0),
 	AttributePropertySet(0xF0),
