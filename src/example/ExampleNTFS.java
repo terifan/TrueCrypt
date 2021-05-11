@@ -20,16 +20,7 @@ public class ExampleNTFS
 			{
 				for (INode node : fs.getNodes(""))
 				{
-		//			System.out.println(node);
-
-					if (node.getName().equals("9.jpg"))
-					{
-						IStream stream = node.getStreams().get(0);
-
-						BufferedImage image = ImageIO.read(fs.readStream(stream));
-
-						System.out.println(image);
-					}
+					System.out.println(node);
 				}
 			}
 
