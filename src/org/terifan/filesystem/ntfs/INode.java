@@ -8,7 +8,7 @@ public interface INode
 	int getAttributes();
 
 
-	int getNodeIndex();
+	long getNodeIndex();
 
 
 	int getParentNodeIndex();

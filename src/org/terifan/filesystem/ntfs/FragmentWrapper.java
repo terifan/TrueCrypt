@@ -24,4 +24,11 @@ class FragmentWrapper implements IFragment
 	{
 		return mFragment.mNextVcn;
 	}
+
+
+	@Override
+	public String toString()
+	{
+		return "FragmentWrapper{" + "mFragment=" + mFragment + '}';
+	}
 }

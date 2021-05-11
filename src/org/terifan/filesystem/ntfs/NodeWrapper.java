@@ -7,12 +7,12 @@ import java.util.List;
 class NodeWrapper implements INode
 {
 	private NtfsReader mReader;
-	private int mNodeIndex;
+	private long mNodeIndex;
 	private Node mNode;
 	private String mFullName;
 
 
-	public NodeWrapper(NtfsReader aReader, int aNodeIndex, Node aNode)
+	public NodeWrapper(NtfsReader aReader, long aNodeIndex, Node aNode)
 	{
 		mReader = aReader;
 		mNodeIndex = aNodeIndex;
@@ -20,7 +20,7 @@ class NodeWrapper implements INode
 	}
 
 
-	public int getNodeIndex()
+	public long getNodeIndex()
 	{
 		return mNodeIndex;
 	}
@@ -63,19 +63,14 @@ class NodeWrapper implements INode
 
 	public List<IStream> getStreams()
 	{
-		if (mReader.mStreams == null)
-		{
-			throw new IllegalStateException("The streams haven't been retrieved. Make sure to use the proper RetrieveMode.");
-		}
-
-		Stream[] streams = mReader.mStreams[mNodeIndex];
+		List<Stream> streams = mReader.getStreams(mNodeIndex);
 		if (streams == null)
 		{
 			return null;
 		}
 
 		List<IStream> newStreams = new ArrayList<IStream>();
-		for (int i = 0; i < streams.length; ++i)
+		for (int i = 0; i < streams.size(); ++i)
 		{
 			newStreams.add(new StreamWrapper(mReader, this, i));
 		}
@@ -86,40 +81,25 @@ class NodeWrapper implements INode
 
 	public DateTime getCreationTime()
 	{
-		if (mReader.mStandardInformations == null)
-		{
-			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
-		}
-
-		return mReader.mStandardInformations[mNodeIndex].mCreationTime;
+		return mReader.getStandardInformations(mNodeIndex).mCreationTime;
 	}
 
 
 	public DateTime getLastChangeTime()
 	{
-		if (mReader.mStandardInformations == null)
-		{
-			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
-		}
-
-		return mReader.mStandardInformations[mNodeIndex].mLastChangeTime;
+		return mReader.getStandardInformations(mNodeIndex).mLastChangeTime;
 	}
 
 
 	public DateTime getLastAccessTime()
 	{
-		if (mReader.mStandardInformations == null)
-		{
-			throw new IllegalStateException("The StandardInformation haven't been retrieved. Make sure to use the proper RetrieveMode.");
-		}
-
-		return mReader.mStandardInformations[mNodeIndex].mLastAccessTime;
+		return mReader.getStandardInformations(mNodeIndex).mLastAccessTime;
 	}
 
 
 	@Override
 	public String toString()
 	{
-		return "NodeWrapper{" + "mNodeIndex=" + mNodeIndex + ", mFullName=" + mFullName + '}';
+		return String.format("%s %11d %d %s", getCreationTime(), getSize(), getStreams() == null ? 0 : getStreams().size(), getFullName());
 	}
 }

@@ -21,19 +21,19 @@ class StreamWrapper implements IStream
 
 	public String getName()
 	{
-		return mReader.getNameFromIndex(mReader.mStreams[mParentNode.getNodeIndex()][mStreamIndex].mNameIndex);
+		return mReader.getNameFromIndex(mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mNameIndex);
 	}
 
 
 	public long getSize()
 	{
-		return mReader.mStreams[mParentNode.getNodeIndex()][mStreamIndex].mSize;
+		return mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mSize;
 	}
 
 
 	public List<IFragment> getFragments()
 	{
-		List<Fragment> fragments = mReader.mStreams[mParentNode.getNodeIndex()][mStreamIndex].getFragments();
+		List<Fragment> fragments = mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).getFragments();
 
 		if (fragments == null || fragments.size() == 0)
 		{
@@ -47,5 +47,12 @@ class StreamWrapper implements IStream
 		}
 
 		return newFragments;
+	}
+
+
+	@Override
+	public String toString()
+	{
+		return "StreamWrapper{" + "mParentNode=" + mParentNode + ", mStreamIndex=" + mStreamIndex + ", name=" + getName() + ", size=" + getSize() + ", fragments=" + getFragments() + '}';
 	}
 }
