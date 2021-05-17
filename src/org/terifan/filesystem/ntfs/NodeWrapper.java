@@ -6,15 +6,15 @@ import java.util.List;
 
 class NodeWrapper implements INode
 {
-	private NtfsReader mReader;
+	private NTFSFileSystem mFileSystem;
 	private long mNodeIndex;
 	private Node mNode;
 	private String mFullName;
 
 
-	public NodeWrapper(NtfsReader aReader, long aNodeIndex, Node aNode)
+	public NodeWrapper(NTFSFileSystem aFileSystem, long aNodeIndex, Node aNode)
 	{
-		mReader = aReader;
+		mFileSystem = aFileSystem;
 		mNodeIndex = aNodeIndex;
 		mNode = aNode;
 	}
@@ -40,7 +40,7 @@ class NodeWrapper implements INode
 
 	public String getName()
 	{
-		return mReader.getNameFromIndex(mNode.mNameIndex);
+		return mNode.mName;
 	}
 
 
@@ -54,7 +54,7 @@ class NodeWrapper implements INode
 	{
 		if (mFullName == null)
 		{
-			mFullName = mReader.getNodeFullNameCore(mNodeIndex);
+			mFullName = mFileSystem.getPath(mNodeIndex);
 		}
 
 		return mFullName;
@@ -63,7 +63,7 @@ class NodeWrapper implements INode
 
 	public List<IStream> getStreams()
 	{
-		List<Stream> streams = mReader.getStreams(mNodeIndex);
+		List<Stream> streams = mFileSystem.getStreams(mNodeIndex);
 		if (streams == null)
 		{
 			return null;
@@ -72,7 +72,7 @@ class NodeWrapper implements INode
 		List<IStream> newStreams = new ArrayList<IStream>();
 		for (int i = 0; i < streams.size(); ++i)
 		{
-			newStreams.add(new StreamWrapper(mReader, this, i));
+			newStreams.add(new StreamWrapper(mFileSystem, this, i));
 		}
 
 		return newStreams;
@@ -81,25 +81,25 @@ class NodeWrapper implements INode
 
 	public DateTime getCreationTime()
 	{
-		return mReader.getStandardInformations(mNodeIndex).mCreationTime;
+		return mFileSystem.getStandardInformations(mNodeIndex).mCreationTime;
 	}
 
 
 	public DateTime getLastChangeTime()
 	{
-		return mReader.getStandardInformations(mNodeIndex).mLastChangeTime;
+		return mFileSystem.getStandardInformations(mNodeIndex).mLastChangeTime;
 	}
 
 
 	public DateTime getLastAccessTime()
 	{
-		return mReader.getStandardInformations(mNodeIndex).mLastAccessTime;
+		return mFileSystem.getStandardInformations(mNodeIndex).mLastAccessTime;
 	}
 
 
 	@Override
 	public String toString()
 	{
-		return String.format("%s %11d %d %s", getCreationTime(), getSize(), getStreams() == null ? 0 : getStreams().size(), getFullName());
+		return getName();
 	}
 }

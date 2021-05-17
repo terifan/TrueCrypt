@@ -6,12 +6,12 @@ class Node
 	public int mAttributes;
 	public int mParentNodeIndex;
 	public long mSize;
-	public int mNameIndex;
+	public String mName;
 
 
 	@Override
 	public String toString()
 	{
-		return "Node{" + "mAttributes=" + mAttributes + ", mParentNodeIndex=" + mParentNodeIndex + ", mSize=" + mSize + ", mNameIndex=" + mNameIndex + '}';
+		return "Node{" + "mAttributes=" + mAttributes + ", mParentNodeIndex=" + mParentNodeIndex + ", mSize=" + mSize + ", mName=" + mName + '}';
 	}
 }

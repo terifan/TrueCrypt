@@ -9,13 +9,13 @@ class Stream
 	public long mClusters;                      // Total number of clusters.
 	public long mSize;                          // Total number of bytes.
 	public AttributeType mType;
-	public int mNameIndex;
+	public String mName;
 	public List<Fragment> mFragments;
 
 
-	public Stream(int aNameIndex, AttributeType aType, long aSize)
+	public Stream(String aName, AttributeType aType, long aSize)
 	{
-		mNameIndex = aNameIndex;
+		mName = aName;
 		mType = aType;
 		mSize = aSize;
 	}
@@ -35,6 +35,6 @@ class Stream
 	@Override
 	public String toString()
 	{
-		return "Stream{" + "Clusters=" + mClusters + ", Size=" + mSize + ", Type=" + mType + ", NameIndex=" + mNameIndex + ", _fragments=" + mFragments.size() + '}';
+		return "Stream{" + "Clusters=" + mClusters + ", Size=" + mSize + ", Type=" + mType + ", Name=" + mName + ", _fragments=" + mFragments.size() + '}';
 	}
 }

@@ -6,34 +6,35 @@ import java.util.List;
 
 class StreamWrapper implements IStream
 {
-	private NtfsReader mReader;
+	private NTFSFileSystem mFileSystem;
 	private NodeWrapper mParentNode;
 	private int mStreamIndex;
 
 
-	public StreamWrapper(NtfsReader reader, NodeWrapper parentNode, int streamIndex)
+	public StreamWrapper(NTFSFileSystem aFileSystem, NodeWrapper aParentNode, int aStreamIndex)
 	{
-		mReader = reader;
-		mParentNode = parentNode;
-		mStreamIndex = streamIndex;
+		mFileSystem = aFileSystem;
+		mParentNode = aParentNode;
+		mStreamIndex = aStreamIndex;
 	}
 
 
 	public String getName()
 	{
-		return mReader.getNameFromIndex(mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mNameIndex);
+//		return mFileSystem.getNameFromIndex(mFileSystem.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mName);
+		return mFileSystem.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mName;
 	}
 
 
 	public long getSize()
 	{
-		return mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mSize;
+		return mFileSystem.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).mSize;
 	}
 
 
 	public List<IFragment> getFragments()
 	{
-		List<Fragment> fragments = mReader.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).getFragments();
+		List<Fragment> fragments = mFileSystem.getStreams(mParentNode.getNodeIndex()).get(mStreamIndex).getFragments();
 
 		if (fragments == null || fragments.size() == 0)
 		{
