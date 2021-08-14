@@ -323,7 +323,7 @@ public class NTFSFileSystem implements AutoCloseable
 //						aNode.mParentNodeIndex = ((long)attr.mParentDirectory.mInodeNumberHighPart << 32) + attr.mParentDirectory.mInodeNumberLowPart;
 						aNode.mParentNodeIndex = attr.mParentDirectory.mInodeNumberLowPart;
 
-						if (attr.mNameType == 1 || aNode.mName == null) // NTFS name
+						if (attr.mNameType == 1 || aNode.mName == null) // allow NTFS name to replace FAT name
 						{
 							aNode.mName = attr.mName;
 						}
@@ -347,7 +347,7 @@ public class NTFSFileSystem implements AutoCloseable
 						aNode.mSize = residentAttribute.mValueLength;
 						break;
 					default:
-//						System.out.println("Unsupported: " + AttributeType.decode(attribute.mAttributeType));
+						System.out.println("Unsupported: " + AttributeType.decode(attribute.mAttributeType));
 						break;
 				}
 			}
@@ -540,6 +540,8 @@ public class NTFSFileSystem implements AutoCloseable
 
 	private void processMft()
 	{
+		long time = System.currentTimeMillis();
+
 		mNodes = new HashMap<>();
 		mStreams = new HashMap<>();
 		mStandardInformations = new HashMap<>();
@@ -608,7 +610,7 @@ public class NTFSFileSystem implements AutoCloseable
 			List<Stream> streams = null;
 			if (RetrieveMode.Streams.isSet(mRetrieveMode))
 			{
-				streams = new ArrayList<Stream>();
+				streams = new ArrayList<>();
 			}
 
 			AtomicReference<Node> newNode = new AtomicReference<>();
@@ -626,7 +628,9 @@ public class NTFSFileSystem implements AutoCloseable
 			}
 		}
 
-		System.out.printf("%.1f MB of volume metadata has been read%n", totalBytesRead / 1024.0 / 1024.0);
+		time = System.currentTimeMillis() - time;
+
+		System.out.printf("%.1f MB of volume metadata and %d records has been read in %d milliseconds%n", totalBytesRead / 1024.0 / 1024.0, mNodes.size(), time);
 	}
 
 
