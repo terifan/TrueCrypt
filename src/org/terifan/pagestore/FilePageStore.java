@@ -20,7 +20,6 @@ public class FilePageStore implements PageStore
 
 	private RandomAccessFile mRandomAccessFile;
 	private int mPageSize;
-	private long mPagesPerVolume;
 	private boolean mReadOnly;
 	private final File mFile;
 
@@ -46,6 +45,11 @@ public class FilePageStore implements PageStore
 		mFile = aFile;
 		mReadOnly = aReadOnly;
 		mPageSize = aPageSize;
+
+		if (mReadOnly && !mFile.exists())
+		{
+			throw new IllegalArgumentException("File doesn't exist: " + mFile);
+		}
 
 		mRandomAccessFile = new RandomAccessFile(mFile, mReadOnly ? "r" : "rw");
 	}
@@ -220,5 +224,12 @@ public class FilePageStore implements PageStore
 	public boolean isReadOnly()
 	{
 		return mReadOnly;
+	}
+
+
+	@Override
+	public void resize(long aPageCount) throws IOException
+	{
+		mRandomAccessFile.setLength(aPageCount * mPageSize);
 	}
 }

@@ -5,11 +5,13 @@ import org.terifan.util.ByteArray;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.zip.CRC32;
 
 
@@ -43,6 +45,54 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	private final static int HEADER_MASTER_KEYDATA_OFFSET = 256;
 	private final static int HEADER_ENCRYPTED_DATA_SIZE = (TC_VOLUME_HEADER_EFFECTIVE_SIZE - HEADER_ENCRYPTED_DATA_OFFSET);
 
+	public static enum CipherOption
+	{
+		AES("aes"),
+		SERPENT("serpent"),
+		TWOFISH("twofish"),
+		TWOFISH_AES("twofish", "aes"),
+		SERPENT_TWOFISH_AES("serpent", "twofish", "aes"),
+		AES_SERPENT("aes", "serpent"),
+		AES_TWOFISH_SERPENT("aes", "twofish", "serpent"),
+		SERPENT_TWOFISH("serpent", "twofish");
+
+		private final String[] mAlgorithms;
+
+		CipherOption(String... aAlgorithms)
+		{
+			mAlgorithms = aAlgorithms;
+		}
+	}
+
+	public static enum DigestOption
+	{
+		SHA512(1000),
+		RIPEMD160(2000),
+		WHIRLPOOL(1000);
+
+		private final int mIterations;
+
+		private DigestOption(int aIterations)
+		{
+			mIterations = aIterations;
+		}
+
+		MessageDigest getDigestInstance()
+		{
+			switch (this)
+			{
+				case SHA512:
+					return new SHA512();
+				case RIPEMD160:
+					return new RIPEMD160();
+				case WHIRLPOOL:
+					return new Whirlpool();
+			}
+
+			throw new RuntimeException();
+		}
+	}
+
 	private PageStore mPageStore;
 	private long mVolumeDataAreaOffset;
 	private long mVolumeDataAreaLength;
@@ -70,55 +120,29 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	}
 
 
+	public static TrueCryptPageStore create(PageStore aPageStore, long aPageCount, String aPassword, CipherOption aCipherOption, DigestOption aDigestOption, Consumer<Long> aProgressCallback) throws IOException
+	{
+		aPageStore.resize(aPageCount);
+
+		TrueCryptPageStore tc = new TrueCryptPageStore(aPageStore);
+		tc.format(aProgressCallback);
+		tc.writeVolumeHeader(aPassword);
+
+		return tc;
+	}
+
+
 	private void readVolumeHeader(String aPassword) throws IOException
 	{
 		byte[] headerBuffer = new byte[ENCRYPTION_DATA_UNIT_SIZE];
 		mPageStore.read(0, headerBuffer);
 
-		String[][] ciphers =
-		{
-			{
-				"aes"
-			},
-			{
-				"serpent"
-			},
-			{
-				"twofish"
-			},
-			{
-				"twofish", "aes"
-			},
-			{
-				"serpent", "twofish", "aes"
-			},
-			{
-				"aes", "serpent"
-			},
-			{
-				"aes", "twofish", "serpent"
-			},
-			{
-				"serpent", "twofish"
-			}
-		};
-
-		int[] iterations =
-		{
-			1000, 2000, 1000
-		};
-
-		String[] digests =
-		{
-			"sha512", "ripemd160", "whirlpool"
-		};
-
 		ArrayList<Callable<Boolean>> tasks = new ArrayList<>();
-		for (String[] cipher : ciphers)
+		for (CipherOption cipher : CipherOption.values())
 		{
-			for (int j = 0; j < digests.length; j++)
+			for (DigestOption digest : DigestOption.values())
 			{
-				Worker task = new Worker(headerBuffer.clone(), cipher, digests[j], iterations[j], aPassword.getBytes());
+				VolumeHeaderDecoder task = new VolumeHeaderDecoder(headerBuffer.clone(), cipher, digest, aPassword.getBytes());
 				tasks.add(task);
 			}
 		}
@@ -138,6 +162,11 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 		{
 			throw new InvalidKeyException("Incorrect password or an unsupported file version.");
 		}
+	}
+
+
+	private void writeVolumeHeader(String aPassword)
+	{
 	}
 
 
@@ -209,6 +238,7 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 //		System.out.println("EncryptedAreaStart="+mVolumeDataAreaOffset);
 //		System.out.println("EncryptedAreaLength="+mVolumeDataAreaLength);
 //		System.out.println("HeaderFlags="+headerFlags);
+
 		mCiphers = new Cipher[aCipherAlgorithms.length];
 		mTweakCiphers = new Cipher[aCipherAlgorithms.length];
 
@@ -241,39 +271,19 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	}
 
 
-	private static MessageDigest getDigestInstance(String aAlgorithm)
-	{
-		if (aAlgorithm.equals("sha512"))
-		{
-			return new SHA512();
-		}
-		if (aAlgorithm.equals("ripemd160"))
-		{
-			return new RIPEMD160();
-		}
-		if (aAlgorithm.equals("whirlpool"))
-		{
-			return new Whirlpool();
-		}
-		throw new RuntimeException();
-	}
-
-
-	private class Worker implements Callable<Boolean>
+	private class VolumeHeaderDecoder implements Callable<Boolean>
 	{
 		private byte[] mHeader;
-		private String[] mCipherAlgorithms;
-		private String mDigestAlgorithm;
-		private int mIterationCount;
+		private CipherOption mCipherOption;
+		private DigestOption mDigestOption;
 		private byte[] mPassword;
 
 
-		Worker(byte[] aHeader, String[] aCipherAlgorithms, String aDigestAlgorithm, int aIterationCount, byte[] aPassword)
+		VolumeHeaderDecoder(byte[] aHeader, CipherOption aCipherOption, DigestOption aDigestOption, byte[] aPassword)
 		{
 			mHeader = aHeader;
-			mCipherAlgorithms = aCipherAlgorithms;
-			mDigestAlgorithm = aDigestAlgorithm;
-			mIterationCount = aIterationCount;
+			mCipherOption = aCipherOption;
+			mDigestOption = aDigestOption;
 			mPassword = aPassword;
 		}
 
@@ -283,20 +293,19 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 		{
 			try
 			{
-				//System.out.println("start digest="+mDigestAlgorithm+", cipher="+Arrays.asList(mCipherAlgorithms));
-				HMAC hmac = new HMAC(TrueCryptPageStore.getDigestInstance(mDigestAlgorithm), mPassword);
-				int totalKeyLength = 32 * mCipherAlgorithms.length * 2;
+				HMAC hmac = new HMAC(mDigestOption.getDigestInstance(), mPassword);
+				int totalKeyLength = 32 * mCipherOption.mAlgorithms.length * 2;
 				byte[] salt = ByteArray.copy(mHeader, HEADER_SALT_OFFSET, PKCS5_SALT_SIZE);
-				byte[] keyBytes = PBKDF2.generateKeyBytes(hmac, salt, mIterationCount, totalKeyLength);
+				byte[] keyBytes = PBKDF2.generateKeyBytes(hmac, salt, mDigestOption.mIterations, totalKeyLength);
 				XTS xts = new XTS(512);
 
-				for (int i = mCipherAlgorithms.length; --i >= 0;)
+				for (int i = mCipherOption.mAlgorithms.length; --i >= 0;)
 				{
-					Cipher cipher = TrueCryptPageStore.getCipherInstance(mCipherAlgorithms[i]);
-					Cipher tweakCipher = TrueCryptPageStore.getCipherInstance(mCipherAlgorithms[i]);
+					Cipher cipher = TrueCryptPageStore.getCipherInstance(mCipherOption.mAlgorithms[i]);
+					Cipher tweakCipher = TrueCryptPageStore.getCipherInstance(mCipherOption.mAlgorithms[i]);
 
 					cipher.engineInit(new SecretKey(keyBytes, 32 * i, 32));
-					tweakCipher.engineInit(new SecretKey(keyBytes, 32 * (i + mCipherAlgorithms.length), 32));
+					tweakCipher.engineInit(new SecretKey(keyBytes, 32 * (i + mCipherOption.mAlgorithms.length), 32));
 
 					xts.decrypt(mHeader, PKCS5_SALT_SIZE, HEADER_ENCRYPTED_DATA_SIZE, 0, cipher, tweakCipher);
 
@@ -306,7 +315,7 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 
 				if (ByteArray.BE.getInt(mHeader, TC_HEADER_OFFSET_MAGIC) == 0x54525545)
 				{
-					setup(mHeader, mCipherAlgorithms);
+					setup(mHeader, mCipherOption.mAlgorithms);
 				}
 
 				hmac.reset();
@@ -418,5 +427,40 @@ public class TrueCryptPageStore implements PageStore, AutoCloseable
 	public long getPageCount() throws IOException
 	{
 		return mPageStore.getPageCount() - mVolumeDataAreaOffset / ENCRYPTION_DATA_UNIT_SIZE;
+	}
+
+
+	@Override
+	public void resize(long aPageCount) throws IOException
+	{
+		throw new UnsupportedOperationException("Not supported.");
+	}
+
+
+	private void format(Consumer<Long> aProgressCallback) throws IOException
+	{
+		int pageSize = getPageSize();
+		byte[] buffer = new byte[pageSize];
+
+		SecureRandom rnd = new SecureRandom();
+
+		XTS xts = new XTS(512);
+
+		for (long sectorIndex = 0, sz = getPageCount(); sectorIndex < sz; sectorIndex++)
+		{
+			rnd.nextBytes(buffer);
+
+			for (int i = 0; i < mCiphers.length; i++)
+			{
+				xts.encrypt(buffer, 0, pageSize, sectorIndex, mCiphers[i], mTweakCiphers[i]);
+			}
+
+			mPageStore.write(sectorIndex, buffer, 0, pageSize);
+
+			if (aProgressCallback != null)
+			{
+				aProgressCallback.accept(sectorIndex);
+			}
+		}
 	}
 }

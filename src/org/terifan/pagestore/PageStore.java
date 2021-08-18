@@ -5,7 +5,7 @@ import java.io.IOException;
 
 
 /**
- * A PageStore is a random access storage of pages. All pages are the same 
+ * A PageStore is a random access storage of pages. All pages are the same
  * size and accessed by their index in the PageStore.
  */
 public interface PageStore extends Closeable
@@ -18,7 +18,7 @@ public interface PageStore extends Closeable
 	 * @param aBuffer
 	 *   the destination buffer. Length must be a multiple of the page size.
 	 */
-	public void read(long aPageIndex, byte [] aBuffer) throws IOException;
+	void read(long aPageIndex, byte [] aBuffer) throws IOException;
 
 
 	/**
@@ -33,7 +33,7 @@ public interface PageStore extends Closeable
 	 * @param aLength
 	 *   number of bytes to write. Must be a multiple of the page size.
 	 */
-	public void read(long aPageIndex, byte [] aBuffer, int aOffset, int aLength) throws IOException;
+	void read(long aPageIndex, byte [] aBuffer, int aOffset, int aLength) throws IOException;
 
 
 	/**
@@ -44,7 +44,7 @@ public interface PageStore extends Closeable
 	 * @param aBuffer
 	 *   the content to be written. Length must be a multiple of the page size.
 	 */
-	public void write(long aPageIndex, byte [] aBuffer) throws IOException;
+	void write(long aPageIndex, byte [] aBuffer) throws IOException;
 
 
 	/**
@@ -59,7 +59,7 @@ public interface PageStore extends Closeable
 	 * @param aLength
 	 *   number of bytes to be written. Must be a multiple of the page size.
 	 */
-	public void write(long aPageIndex, byte [] aBuffer, int aOffset, int aLength) throws IOException;
+	void write(long aPageIndex, byte [] aBuffer, int aOffset, int aLength) throws IOException;
 
 
 	/**
@@ -68,7 +68,7 @@ public interface PageStore extends Closeable
 	 * @return
 	 *   number of pages
 	 */
-	public long getPageCount() throws IOException;
+	long getPageCount() throws IOException;
 
 
 	/**
@@ -77,19 +77,22 @@ public interface PageStore extends Closeable
 	 * @return
 	 *   the size of a page.
 	 */
-	public int getPageSize() throws IOException;
+	int getPageSize() throws IOException;
 
 
 	/**
-	 * Close the PageStore and clears all internal data. A PageStore must be 
+	 * Close the PageStore and clears all internal data. A PageStore must be
 	 * explicitly closed.
 	 */
 	@Override
-	public void close() throws IOException;
+	void close() throws IOException;
 
 
 	/**
 	 * Optional flushing operation that may write unwritten data to disk.
 	 */
-	public void flush() throws IOException;
+	void flush() throws IOException;
+
+
+	void resize(long aPageCount) throws IOException;
 }
