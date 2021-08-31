@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -45,7 +45,8 @@ final class Whirlpool extends MessageDigest implements Cloneable
 		"\u2ABB\uc153\udc0B\u9d6c\u3174\uF646\uAc89\u14E1" +
 		"\u163A\u6909\u70B6\ud0Ed\ucc42\u98A4\u285c\uF886";
 
-	static
+	private static final Object _ignoreMeJvmDoesntRunInitializersSometimes = initializeStatics();
+	private static Object initializeStatics()
 	{
 		for (int x = 0; x < 256; x++)
 		{
@@ -88,6 +89,7 @@ final class Whirlpool extends MessageDigest implements Cloneable
 				(C[6][i + 6] & 0x000000000000ff00L) ^
 				(C[7][i + 7] & 0x00000000000000ffL);
 		}
+		return null;
 	}
 
 	private transient byte[] bitLength = new byte[32];

@@ -1,7 +1,8 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
+import org.terifan.security.cryptography.RIPEMD160;
 import java.security.MessageDigest;
-import static org.terifan.truecrypt.__Convert.toHexString;
+import static org.terifan.security.cryptography.__Convert.toHexString;
 import static org.testng.Assert.*;
 import org.testng.annotations.Test;
 

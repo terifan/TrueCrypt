@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;

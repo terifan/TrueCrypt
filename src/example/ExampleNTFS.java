@@ -4,7 +4,7 @@ import java.io.File;
 import org.terifan.filesystem.ntfs.INode;
 import org.terifan.filesystem.ntfs.NTFSFileSystem;
 import org.terifan.pagestore.FilePageStore;
-import org.terifan.truecrypt.TrueCryptPageStore;
+import org.terifan.security.cryptography.TrueCryptPageStore;
 
 
 public class ExampleNTFS

@@ -6,7 +6,7 @@ import java.io.IOException;
 import org.terifan.filesystem.fat32.FatFile;
 import org.terifan.filesystem.fat32.FatFileSystem;
 import org.terifan.pagestore.FilePageStore;
-import org.terifan.truecrypt.TrueCryptPageStore;
+import org.terifan.security.cryptography.TrueCryptPageStore;
 
 
 public class ExampleFAT

@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import java.util.Arrays;
 
@@ -59,7 +59,8 @@ final class Twofish implements Cipher
 
 	private final static int [][] MDS = new int[4][256];
 
-	static
+	private static final Object _ignoreMeJvmDoesntRunInitializersSometimes = initializeStatics();
+	private static Object initializeStatics()
 	{
 		// precompute the MDS matrix
 		int[] m1 = new int[2];
@@ -85,6 +86,7 @@ final class Twofish implements Cipher
 			MDS[2][i] = mX[1] <<  0 | mY[1] <<  8 | m1[1] << 16 | mY[1] << 24;
 			MDS[3][i] = mX[0] <<  0 | m1[0] <<  8 | mY[0] << 16 | mX[0] << 24;
 		}
+		return null;
 	}
 
 	private static int LFSR1(int x)

@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import java.util.Arrays;
 import static org.testng.Assert.*;

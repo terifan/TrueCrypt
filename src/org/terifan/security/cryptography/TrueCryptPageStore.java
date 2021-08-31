@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import org.terifan.pagestore.PageStore;
 import org.terifan.util.ByteArray;

@@ -1,4 +1,4 @@
-package org.terifan.truecrypt;
+package org.terifan.security.cryptography;
 
 import java.util.Arrays;
 
@@ -51,7 +51,8 @@ final class AES implements Cipher
 	private final static byte[] rcon = new byte[30];
 
 
-	static
+	private static final Object _ignoreMeJvmDoesntRunInitializersSometimes = initializeStatics();
+	private static Object initializeStatics()
 	{
 		int ROOT = 0x11B;
 		int i, j = 0;
@@ -115,6 +116,7 @@ final class AES implements Cipher
 			}
 			rcon[i] = (byte) r;
 		}
+		return null;
 	}
 	private transient int[][] Ke;
 	private transient int[][] Kd;
